@@ -1,0 +1,184 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+    {% set can_edit = is_granted('edit', department) %}
+
+    {% embed '@theme/embeds/card.html.twig' with {fullsize: true}  %}
+        {% import "macros/widgets.html.twig" as widgets %}
+        {% block box_attributes %}id="department_details_box"{% endblock %}
+        {% block box_title %}
+            {{ widgets.label_dot(department.name, department.color) }}
+            {% if department.company is not empty %} &ndash; {{ department.company }}{% endif %}
+        {% endblock %}
+        {% block box_tools %}
+            {% if can_edit %}
+                {{ widgets.card_tool_button('edit', {'class': 'modal-ajax-form open-edit', 'title': 'edit', 'url': path('admin_department_edit', {'id': department.id})}) }}
+            {% endif %}
+        {% endblock %}
+        {% block box_body %}
+            {% if department.comment is not empty %}
+                <div class="comment p-3">
+                    {{ department.comment|comment2html(true) }}
+                </div>
+            {% endif %}
+            <table class="table table-hover dataTable">
+                {% if not department.visible %}
+                    <tr class="{{ widgets.class_department_row(department, now) }}">
+                        <th>{{ 'visible'|trans }}</th>
+                        <td>{{ widgets.label_boolean(department.visible) }}</td>
+                    </tr>
+                {% endif %}
+                {% if not department.billable %}
+                    <tr>
+                        <th>{{ 'billable'|trans }}</th>
+                        <td colspan="3">
+                            {{ widgets.label_boolean(department.billable) }}
+                        </td>
+                    </tr>
+                {% endif %}
+                {% if department.addressLine1 is not empty %}
+                    <tr>
+                        <th>{{ 'address'|trans }}</th>
+                        <td>
+                            {{ department.addressLine1 }}<br>
+                            {% if department.addressLine2 is not empty %}
+                                {{ department.addressLine2 }}<br>
+                            {% endif %}
+                            {% if department.addressLine3 is not empty %}
+                                {{ department.addressLine3 }}<br>
+                            {% endif %}
+                            {{ department.postCode }} {{ department.city }}
+                        </td>
+                    </tr>
+                {% endif %}
+                {% if department.address is not empty %}
+                    <tr>
+                        <th>{{ 'address'|trans }}</th>
+                        <td>
+                            {{ widgets.alert('info', 'address_deprecated'|trans) }}
+                            <br>
+                            <i>
+                            {{ department.address|nl2br }}
+                            </i>
+                        </td>
+                    </tr>
+                {% endif %}
+                {% if department.country is not empty %}
+                    <tr>
+                        <th>{{ 'country'|trans }}</th>
+                        <td>{{ department.country|country_name }}</td>
+                    </tr>
+                {% endif %}
+                {% if department.contact is not empty %}
+                    <tr>
+                        <th>{{ 'contact'|trans }}</th>
+                        <td>{{ department.contact }}</td>
+                    </tr>
+                {% endif %}
+                {% if department.phone is not empty %}
+                    <tr>
+                        <th>{{ 'phone'|trans }}</th>
+                        <td><a href="tel:{{ department.phone }}">{{ department.phone }}</a></td>
+                    </tr>
+                {% endif %}
+                {% if department.mobile is not empty %}
+                    <tr>
+                        <th>{{ 'mobile'|trans }}</th>
+                        <td><a href="tel:{{ department.mobile }}">{{ department.mobile }}</a></td>
+                    </tr>
+                {% endif %}
+                {% if department.email is not empty %}
+                    <tr>
+                        <th>{{ 'email'|trans }}</th>
+                        <td><a href="mailto:{{ department.email }}">{{ department.email }}</a></td>
+                    </tr>
+                {% endif %}
+                {% if department.homepage is not empty %}
+                    <tr>
+                        <th>{{ 'homepage'|trans }}</th>
+                        <td><a href="{{ department.homepage }}" target="_blank">{{ department.homepage|replace({'https://': '', 'http://': ''}) }}</a></td>
+                    </tr>
+                {% endif %}
+                {% if department.fax is not empty %}
+                    <tr>
+                        <th>{{ 'fax'|trans }}</th>
+                        <td>{{ department.fax }}</td>
+                    </tr>
+                {% endif %}
+                {% if department.timezone is not empty %}
+                    <tr>
+                        <th>{{ 'timezone'|trans }}</th>
+                        <td>{{ department_now|date_time }} ({{ department.timezone }})</td>
+                    </tr>
+                {% endif %}
+                {% if department.currency is not empty %}
+                    <tr>
+                        <th>{{ 'currency'|trans }}</th>
+                        <td>{{ department.currency }}</td>
+                    </tr>
+                {% endif %}
+                {% if is_granted('details', department) %}
+                    {% if department.number is not empty %}
+                        <tr>
+                            <th>{{ 'number'|trans }}</th>
+                            <td>{{ department.number }}</td>
+                        </tr>
+                    {% endif %}
+                    {% if department.vatId is not empty %}
+                        <tr>
+                            <th>{{ 'vat_id'|trans }}</th>
+                            <td>{{ department.vatId }}</td>
+                        </tr>
+                    {% endif %}
+                {% endif %}
+                {% for metaField in department.visibleMetaFields|filter(field => field.defined)|sort((a, b) => a.order <=> b.order) %}
+                    <tr>
+                        <th>{{ metaField.label|trans }}</th>
+                        <td>{{ widgets.form_type_value(metaField.type, metaField.value, department) }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endblock %}
+    {% endembed %}
+
+    {{ render(controller('App\\Controller\\DepartmentController::projectsAction', {'department': department.id, 'page': 1})) }}
+
+    {% if can_edit %}
+        {{ include('embeds/rates-table.html.twig', {'id': 'department_rates_box', 'entity': department, 'create_url': path('admin_department_rate_add', {'id': department.id}), 'delete_route': 'delete_department_rate', 'currency': department.currency, 'edit_route': 'admin_department_rate_edit'}) }}
+    {% endif %}
+
+    {% if stats is not null %}
+        {{ include('embeds/budgets.html.twig', {'entity': department, 'stats': stats, 'currency': department.currency}) }}
+    {% endif %}
+
+    {% for controller in boxes %}
+        {{ render(controller(controller, {'department': department, 'page': 1})) }}
+    {% endfor %}
+
+    {% if teams is not null %}
+        {% set options = {'teams': teams, 'team': team} %}
+        {% if is_granted('permissions', department) %}
+            {% set options = options|merge({'route_create': path('department_team_create', {'id': department.id}), 'route_edit': path('admin_department_permissions', {'id': department.id})}) %}
+        {% endif %}
+        {{ include('embeds/teams.html.twig', options) }}
+    {% endif %}
+
+    {% if comments is not null %}
+        {% set options = {'form': commentForm, 'comments': comments} %}
+        {% if can_edit %}
+            {% set options = options|merge({'route_pin': 'department_comment_pin', 'route_delete': 'department_comment_delete'}) %}
+        {% endif %}
+        {{ include('embeds/comments.html.twig', options) }}
+    {% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script type="text/javascript">
+        document.addEventListener('kimai.initialized', function() {
+            KimaiReloadPageWidget.create('kimai.departmentTeamUpdate kimai.departmentUpdate kimai.teamUpdate kimai.projectTeamUpdate kimai.rateUpdate');
+        });
+    </script>
+{% endblock %}

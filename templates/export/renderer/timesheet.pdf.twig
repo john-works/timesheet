@@ -1,0 +1,18 @@
+{% extends 'export/pdf-layout.html.twig' %}
+{% set showRateColumn = false %}
+{% set showRateBudget = false %}
+{% set showTimeBudget = false %}
+{% set showUserColumn = true %}
+{% set showDepartmentSummary = false %}
+{% set decimal = true %}
+{% set showDateTimeShort = true %}
+{% block title %}{{ 'timesheet'|trans }}{% endblock %}
+{% block description %}
+    {% if entry.description is not empty %}
+        {{ entry.description|desc2html }}
+    {% elseif entry.activity is not null %}
+        {{ entry.activity.name }}
+    {% endif %}
+    <br>
+    <small>{{ entry.project.department.name }}, {{ entry.project.name }}</small>
+{% endblock %}

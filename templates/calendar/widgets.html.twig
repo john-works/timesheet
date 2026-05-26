@@ -1,0 +1,7 @@
+{% macro dd_event(title, department, project, deprecated) %}
+    {% import "macros/widgets.html.twig" as widgets %}
+        {{ title }}
+    {% if project is not null %}
+        <small class="d-block text-body-secondary text-truncate">{{ project }}{% if department is not null %}, {{ department }}{% endif %}</small>
+    {% endif %}
+{% endmacro %}

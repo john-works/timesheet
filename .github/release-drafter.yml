@@ -1,0 +1,29 @@
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
+exclude-labels:
+    - 'duplicate'
+    - 'invalid'
+    - 'wontfix'
+    - 'release'
+exclude-contributors:
+    - 'dependabot'
+    - 'weblate'
+change-template: '- $TITLE (#$NUMBER)'
+change-title-escapes: '\<*_&`#@'
+version-resolver:
+    minor:
+        labels:
+            - 'feature request'
+            - 'release'
+    patch:
+        labels:
+            - 'technical debt'
+            - 'bug'
+            - 'translation'
+    default: patch
+template: |
+    **Compatible with PHP 8.2 to 8.5**
+    
+    $CHANGES
+    
+    Involved in this release: $CONTRIBUTORS

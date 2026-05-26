@@ -1,0 +1,57 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the Kimai time-tracking app.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace DoctrineMigrations;
+
+use App\Doctrine\AbstractMigration;
+use Doctrine\DBAL\Schema\Schema;
+
+/**
+ * Creates the budget columns on: department, project, activity.
+ *
+ * @version 1.0
+ */
+final class Version20190605171157 extends AbstractMigration
+{
+    public function getDescription(): string
+    {
+        return 'Creates the budget columns on: department, project, activity';
+    }
+
+    public function up(Schema $schema): void
+    {
+        $departments = $schema->getTable('kimai2_departments');
+        $departments->addColumn('time_budget', 'integer', ['notnull' => true, 'default' => 0]);
+        $departments->addColumn('budget', 'float', ['notnull' => true, 'default' => 0]);
+
+        $projects = $schema->getTable('kimai2_projects');
+        $projects->addColumn('time_budget', 'integer', ['notnull' => true, 'default' => 0]);
+        $projects->getColumn('budget')->setDefault(0);
+
+        $activities = $schema->getTable('kimai2_activities');
+        $activities->addColumn('time_budget', 'integer', ['notnull' => true, 'default' => 0]);
+        $activities->addColumn('budget', 'float', ['notnull' => true, 'default' => 0]);
+    }
+
+    public function down(Schema $schema): void
+    {
+        $departments = $schema->getTable('kimai2_departments');
+        $departments->dropColumn('time_budget');
+        $departments->dropColumn('budget');
+
+        $projects = $schema->getTable('kimai2_projects');
+        $projects->dropColumn('time_budget');
+
+        $activities = $schema->getTable('kimai2_activities');
+        $activities->dropColumn('time_budget');
+        $activities->dropColumn('budget');
+    }
+}
