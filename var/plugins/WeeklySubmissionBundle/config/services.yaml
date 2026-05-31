@@ -1,0 +1,23 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    KimaiPlugin\WeeklySubmissionBundle\:
+        resource: '../*'
+        exclude: '../{Entity,Migrations,Resources,Repository}'
+
+    KimaiPlugin\WeeklySubmissionBundle\Controller\:
+        resource: '../Controller/'
+        tags: ['controller.service_arguments']
+
+    KimaiPlugin\WeeklySubmissionBundle\Widget\PendingApprovalsWidget:
+        tags:
+            - { name: 'App\Widget\WidgetInterface' }
+
+    KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository:
+        class: KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository
+        factory: ['@doctrine.orm.entity_manager', getRepository]
+        arguments: ['KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission']
+        autowire: false

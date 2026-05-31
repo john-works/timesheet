@@ -1,0 +1,16 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Weekly Timesheet Submitted{% endblock %}
+
+{% block body %}
+<p>
+    <strong>{{ staff.displayName }}</strong> has submitted their weekly timesheet for
+    <strong>{{ weekStart }} - {{ weekEnd }}</strong>.
+</p>
+<p>
+    Total hours: <strong>{{ (submission.totalDuration / 3600)|number_format(2) }}h</strong>
+</p>
+<p>
+    <a href="{{ url('weekly_submission_supervisor_pending') }}">Click here to review</a>
+</p>
+{% endblock %}

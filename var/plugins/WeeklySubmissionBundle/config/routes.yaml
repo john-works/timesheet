@@ -1,0 +1,9 @@
+weekly_submission_staff:
+    resource: ../Controller/StaffController.php
+    type: attribute
+    prefix: /{_locale}/weekly-submission
+
+weekly_submission_supervisor:
+    resource: ../Controller/SupervisorController.php
+    type: attribute
+    prefix: /{_locale}/weekly-submission

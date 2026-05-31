@@ -29,8 +29,8 @@ var/templates/
 /var/log/*
 /var/sessions/*
 /var/packages/*
-/var/plugins*
-/var/plugins/*/*.disabled
+/var/plugins/*.disabled
+/var/plugins/WeeklySubmissionBundle/*.disabled
 
 ###> symfony/framework-bundle ###
 /.env.local

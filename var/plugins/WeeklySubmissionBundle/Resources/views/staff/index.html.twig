@@ -1,0 +1,186 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">My Weekly Timesheet</h3>
+                <div class="card-tools">
+                    <strong>{{ weekStart|date('d/m/Y') }} - {{ weekEnd|date('d/m/Y') }}</strong>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if submission is not null %}
+                    <div class="mb-3">
+                        <strong>Status:</strong>
+                        {% if submission.isDraft %}
+                            <span class="badge bg-secondary">Draft</span>
+                        {% elseif submission.isSubmitted %}
+                            <span class="badge bg-primary">Submitted</span>
+                        {% elseif submission.isApproved %}
+                            <span class="badge bg-success">Approved</span>
+                        {% elseif submission.isRejected %}
+                            <span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </div>
+
+                    {% if submission.isSubmitted %}
+                        <div class="alert alert-info">
+                            Submitted on {{ submission.submittedAt|date('d/m/Y H:i') }}.
+                            Waiting for supervisor approval.
+                        </div>
+                    {% endif %}
+
+                    {% if submission.isApproved %}
+                        <div class="alert alert-success">
+                            Approved by {{ submission.approvedBy.displayName }} on {{ submission.approvedAt|date('d/m/Y H:i') }}.
+                            {% if submission.supervisorNotes %}
+                                <br><strong>Notes:</strong> {{ submission.supervisorNotes }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    {% if submission.isRejected %}
+                        <div class="alert alert-danger">
+                            <strong>Rejected</strong> by {{ submission.approvedBy.displayName }} on {{ submission.approvedAt|date('d/m/Y H:i') }}.
+                            {% if submission.supervisorNotes %}
+                                <br><strong>Reason:</strong> {{ submission.supervisorNotes }}
+                            {% endif %}
+                            <br><br>
+                            <a href="{{ path('timesheet') }}" class="alert-link">Edit your timesheet entries</a>
+                            for this week, then submit again below.
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+                <div class="mb-3">
+                    <strong>Total hours this week:</strong>
+                    {% set hours = (totalDuration / 3600)|number_format(2) %}
+                    {{ hours }}h
+                </div>
+
+                {% if supervisor is null %}
+                    <div class="alert alert-warning">
+                        You do not have a supervisor assigned. Please contact your administrator.
+                    </div>
+                {% elseif submission.isDraft %}
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
+                        <i class="fas fa-paper-plane"></i> Submit to Supervisor
+                    </button>
+                {% elseif submission.isRejected %}
+                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal">
+                        <i class="fas fa-redo"></i> Resubmit to Supervisor
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="submitModal" tabindex="-1" aria-labelledby="submitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header {% if submission.isRejected %}bg-warning text-white{% else %}bg-primary text-white{% endif %}">
+                <h5 class="modal-title" id="submitModalLabel">
+                    <i class="fas fa-check-circle"></i> {% if submission.isRejected %}Resubmit{% else %}Confirm{% endif %} Weekly Timesheet
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Please review your timesheet before {% if submission.isRejected %}resubmitting{% else %}submitting{% endif %}.</strong>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Week:</strong><br>
+                        {{ weekStart|date('d/m/Y') }} to {{ weekEnd|date('d/m/Y') }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Total Hours:</strong><br>
+                        {% set hours = (totalDuration / 3600)|number_format(2) %}
+                        <span class="badge bg-primary" style="font-size: 1.2em;">{{ hours }}h</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <strong>Supervisor:</strong><br>
+                    {{ supervisor.displayName }}
+                </div>
+
+                <hr>
+                <p class="text-muted small mb-0">
+                    Once submitted, your timesheet will be sent to your supervisor for approval.
+                    You will not be able to modify it until it is either approved or
+                    {% if submission.isRejected -%}
+                        rejected again.
+                    {%- else -%}
+                        rejected.
+                    {%- endif %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <form action="{{ path('weekly_submission_staff_submit') }}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> {% if submission.isRejected %}Yes, Resubmit{% else %}Yes, Submit Now{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if history|length > 0 %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Submission History</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Approved By</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in history %}
+                        <tr>
+                            <td>{{ entry.weekStart|date('d/m/Y') }} - {{ entry.weekEnd|date('d/m/Y') }}</td>
+                            <td>
+                                {% if entry.isApproved %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% elseif entry.isRejected %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% elseif entry.isSubmitted %}
+                                    <span class="badge bg-primary">Submitted</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Draft</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
+                            <td>{{ entry.approvedBy ? entry.approvedBy.displayName : '-' }}</td>
+                            <td>{{ entry.supervisorNotes ?: '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% endblock %}

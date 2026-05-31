@@ -1,0 +1,21 @@
+{
+    "name": "kimai/weekly-submission-bundle",
+    "description": "Weekly timesheet submission and approval workflow",
+    "version": "1.0.0",
+    "type": "kimai-plugin",
+    "require": {
+        "kimai/kimai": ">=2.0"
+    },
+    "extra": {
+        "kimai": {
+            "require": 25600,
+            "name": "WeeklySubmissionBundle",
+            "version": "1.0.0"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "KimaiPlugin\\WeeklySubmissionBundle\\": ""
+        }
+    }
+}

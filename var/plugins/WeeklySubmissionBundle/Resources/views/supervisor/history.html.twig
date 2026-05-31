@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Approval History</h3>
+            </div>
+            <div class="card-body p-0">
+                {% if submissions|length == 0 %}
+                    <div class="p-3">
+                        <div class="alert alert-info mb-0">No history yet.</div>
+                    </div>
+                {% else %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Staff</th>
+                                <th>Week</th>
+                                <th>Status</th>
+                                <th>Total Hours</th>
+                                <th>Processed</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submission in submissions %}
+                            <tr>
+                                <td>{{ submission.user.displayName }}</td>
+                                <td>{{ submission.weekStart|date('d/m/Y') }} - {{ submission.weekEnd|date('d/m/Y') }}</td>
+                                <td>
+                                    {% if submission.isApproved %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elseif submission.isRejected %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ (submission.totalDuration / 3600)|number_format(2) }}h</td>
+                                <td>{{ submission.approvedAt ? submission.approvedAt|date('d/m/Y H:i') : '-' }}</td>
+                                <td>{{ submission.supervisorNotes ?: '-' }}</td>
+                                <td class="actions-cell">
+                                    <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="btn btn-info btn-sm remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.actions-cell { white-space: nowrap; }
+</style>
+{% endblock %}
