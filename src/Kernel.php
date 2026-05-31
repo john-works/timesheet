@@ -36,6 +36,7 @@ class Kernel extends BaseKernel
 
     public function getCacheDir(): string
     {
+        umask(0000);
         return $this->getProjectDir() . '/var/cache/' . $this->environment;
     }
 

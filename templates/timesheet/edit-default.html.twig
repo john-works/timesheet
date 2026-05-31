@@ -1,5 +1,6 @@
 {% block timesheet_form %}
     {% form_theme form 'form/horizontal.html.twig' %}
+    {% set formStartOptions = {'attr': {'novalidate': 'novalidate'}} %}
     {% embed formOptions.template with formOptions %}
         {% block form_body %}
             {% if form.begin_date is defined %}
@@ -53,10 +54,13 @@
                 {{ form_row(form.department, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.department.vars.name}}) }}
             {% endif %}
             {% if form.project is defined %}
-                {{ form_row(form.project, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.project.vars.name}}) }}
+                <div style="display:none">{{ form_row(form.project) }}</div>
             {% endif %}
             {% if form.activity is defined %}
                 {{ form_row(form.activity, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.activity.vars.name}}) }}
+            {% endif %}
+            {% if form.task is defined %}
+                {{ form_row(form.task, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.task.vars.name}}) }}
             {% endif %}
             {% if form.description is defined %}
                 {{ form_row(form.description, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.description.vars.name}}) }}

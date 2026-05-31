@@ -9,6 +9,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Department;
 use App\Entity\Invoice;
 use App\Entity\Team;
 use App\Entity\Timesheet;
@@ -297,8 +298,18 @@ class UserRepository extends EntityRepository implements UserLoaderInterface, Us
                     $userIds[] = $user->getId();
                 }
             }
+            $userIds = array_unique($userIds);
             $qb->andWhere($qb->expr()->in('u.id', ':searchTeams'));
             $qb->setParameter('searchTeams', array_unique($userIds));
+        }
+
+        if ($query->getDepartment() !== null) {
+            $qb->distinct()
+                ->leftJoin('u.memberships', 'membership')
+                ->leftJoin('membership.team', 'team')
+                ->leftJoin('team.departments', 'department')
+                ->andWhere($qb->expr()->eq('department.id', ':department'))
+                ->setParameter('department', $query->getDepartment()->getId());
         }
 
         if ($query->isShowVisible()) {

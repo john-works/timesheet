@@ -9,6 +9,7 @@
 
 namespace App\Reporting\WeeklyUserList;
 
+use App\Form\Type\DepartmentType;
 use App\Form\Type\ProjectType;
 use App\Form\Type\ReportSumType;
 use App\Form\Type\TeamType;
@@ -30,6 +31,11 @@ final class WeeklyUserListForm extends AbstractType
             'start_date' => $options['start_date'],
         ]);
         $builder->add('team', TeamType::class, [
+            'multiple' => false,
+            'required' => false,
+            'width' => false,
+        ]);
+        $builder->add('department', DepartmentType::class, [
             'multiple' => false,
             'required' => false,
             'width' => false,

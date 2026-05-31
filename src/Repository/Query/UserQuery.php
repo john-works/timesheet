@@ -9,6 +9,7 @@
 
 namespace App\Repository\Query;
 
+use App\Entity\Department;
 use App\Entity\Team;
 
 /**
@@ -30,6 +31,7 @@ class UserQuery extends BaseQuery implements VisibilityInterface
      * @var array<int>
      */
     private array $userIds = [];
+    private ?Department $department = null;
 
     public function __construct()
     {
@@ -40,6 +42,16 @@ class UserQuery extends BaseQuery implements VisibilityInterface
             'systemAccount' => null,
             'userIds' => [],
         ]);
+    }
+
+    public function getDepartment(): ?Department
+    {
+        return $this->department;
+    }
+
+    public function setDepartment(?Department $department): void
+    {
+        $this->department = $department;
     }
 
     /**

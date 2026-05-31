@@ -61,6 +61,9 @@ final class ReportingVoter extends Voter
                 break;
 
             case 'report:other':
+                if ($user->isTeamlead()) {
+                    break;
+                }
                 $permissions[] = 'view_other_reporting';
                 $permissions[] = 'view_other_timesheet';
                 break;

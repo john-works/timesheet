@@ -28,8 +28,10 @@ use App\Form\Type\YesNoType;
 use App\Repository\DepartmentRepository;
 use App\Repository\Query\DepartmentFormTypeQuery;
 use App\Timesheet\Calculator\BillableCalculator;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -45,7 +47,8 @@ class TimesheetEditForm extends AbstractType
 
     public function __construct(
         private readonly DepartmentRepository $departments,
-        private readonly SystemConfiguration $systemConfiguration
+        private readonly SystemConfiguration $systemConfiguration,
+        private readonly EntityManagerInterface $entityManager
     )
     {
     }
@@ -128,15 +131,54 @@ class TimesheetEditForm extends AbstractType
             ]);
         }
 
-        // TODO pre-select if only one exists
+        // hidden project field pre-set to PPDA for activity cascading
+        if ($project === null) {
+            $project = $this->entityManager->getRepository(\App\Entity\Project::class)->find(4);
+        }
         $this->addProject($builder, $isNew, $project, $department);
 
-        // TODO make creation possible
-        //$allowCreate = (bool) $this->systemConfiguration->find('activity.allow_inline_create');
+        // visible activity dropdown
         $this->addActivity($builder, $activity, $project, [
             'allow_create' => false,
-            // 'allow_create' => $allowCreate && $options['create_activity'],
         ]);
+
+        $builder->add('task', TextType::class, [
+            'mapped' => false,
+            'required' => false,
+            'label' => 'What are you doing?',
+            'attr' => ['placeholder' => 'e.g. Working on report, attending meeting, ...', 'rows' => 3],
+        ]);
+
+        $builder->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $event): void {
+            $timesheet = $event->getData();
+            if (!$timesheet instanceof Timesheet) {
+                return;
+            }
+            $desc = $timesheet->getDescription();
+            if (!empty($desc)) {
+                $event->getForm()->get('task')->setData($desc);
+            }
+        });
+
+        $builder->addEventListener(FormEvents::SUBMIT, function (FormEvent $event): void {
+            $timesheet = $event->getData();
+            if (!$timesheet instanceof Timesheet) {
+                return;
+            }
+
+            $task = $event->getForm()->get('task')->getData();
+
+            if (!empty($task)) {
+                $timesheet->setDescription($task);
+            }
+
+            if ($timesheet->getProject() === null) {
+                $project = $this->entityManager->getRepository(\App\Entity\Project::class)->find(4);
+                if ($project !== null) {
+                    $timesheet->setProject($project);
+                }
+            }
+        });
 
         $descriptionOptions = ['required' => false];
         if (!$isNew) {

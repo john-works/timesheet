@@ -26,9 +26,7 @@ final class TimesheetPreCreateForm extends AbstractType
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $this->addProject($builder, true, null, null, ['required' => false]);
-        $this->addActivity($builder, null, null, ['required' => false]);
-        $builder->add('description', DescriptionType::class, ['required' => false]);
+        $builder->add('description', DescriptionType::class, ['required' => false, 'label' => 'What are you doing?']);
         $builder->add('tags', TagsInputType::class, ['required' => false]);
         $builder->add('metaFields', MetaFieldsCollectionType::class);
         if ($options['include_user']) {

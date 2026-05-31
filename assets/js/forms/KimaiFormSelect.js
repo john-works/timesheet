@@ -115,6 +115,15 @@ export default class KimaiFormSelect extends KimaiFormTomselectPlugin {
         }
 
         const select = new TomSelect(node, options);
+
+        // TomSelect hides the original select and makes it non-focusable,
+        // which conflicts with browser HTML5 validation of required fields.
+        // Remove the required attribute from the original element since
+        // TomSelect handles required state via the no_backspace_delete plugin.
+        if (isRequired) {
+            node.required = false;
+        }
+
         node.addEventListener('data-reloaded', (event) => {
             select.clear(true);
             select.clearOptionGroups();
