@@ -213,6 +213,11 @@ services:
         factory: ['@doctrine.orm.entity_manager', getRepository]
         arguments: ['App\Entity\ExportTemplate']
 
+    App\Repository\PublicHolidayRepository:
+        class: App\Repository\PublicHolidayRepository
+        factory: ['@doctrine.orm.entity_manager', getRepository]
+        arguments: ['App\Entity\PublicHoliday']
+
     monolog.formatter.kimai:
         class: Monolog\Formatter\LineFormatter
         arguments:

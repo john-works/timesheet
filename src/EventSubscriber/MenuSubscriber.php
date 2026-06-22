@@ -72,6 +72,10 @@ final class MenuSubscriber implements EventSubscriberInterface
             $times->addChild(
                 new MenuItemModel('calendar', 'calendar', 'calendar', [], 'calendar')
             );
+
+            $times->addChild(
+                new MenuItemModel('leave', 'Leave', 'leave', [], 'leave')
+            );
         }
 
         $this->addDivider($times);
@@ -82,7 +86,7 @@ final class MenuSubscriber implements EventSubscriberInterface
             );
         }
 
-        if ($auth->isGranted('view_other_timesheet')) {
+        if ($auth->isGranted('view_other_timesheet') && ($user->isTeamlead() || $user->isSupervisor() || $user->canSeeAllData())) {
             $timesheets = new MenuItemModel('timesheet_admin', 'all_times', 'admin_timesheet', [], 'timesheet-team');
             $timesheets->setChildRoutes(['admin_timesheet_export', 'admin_timesheet_edit', 'admin_timesheet_create', 'admin_timesheet_multi_update']);
             $times->addChild($timesheets);
@@ -108,31 +112,6 @@ final class MenuSubscriber implements EventSubscriberInterface
             $menu->addChild($reporting);
         }
 
-        // ------------------- invoice menu -------------------
-        $invoice = new MenuItemModel('invoices', 'invoices', null, [], 'invoice');
-
-        if ($auth->isGranted('create_invoice')) {
-            $invoice->addChild(new MenuItemModel('invoice', 'invoice_form.title', 'invoice', [], 'invoice'));
-        }
-
-        if ($auth->isGranted('view_invoice')) {
-            $tmpMenu = new MenuItemModel('invoice_listing', 'all_invoices', 'admin_invoice_list', [], 'list');
-            $tmpMenu->setChildRoutes(['admin_invoice_edit']);
-            $invoice->addChild($tmpMenu);
-        }
-
-        if ($auth->isGranted('manage_invoice_template')) {
-            $tmpMenu = new MenuItemModel('invoice-template', 'admin_invoice_template.title', 'admin_invoice_template', [], 'invoice-template');
-            $tmpMenu->setChildRoutes(['admin_invoice_template_edit', 'admin_invoice_template_create', 'admin_invoice_template_copy', 'admin_invoice_document_upload']);
-            $invoice->addChild($tmpMenu);
-        }
-
-        if ($invoice->hasChildren()) {
-            $this->addDivider($invoice);
-        }
-
-        $menu->addChild($invoice);
-
         // ------------------- admin menu -------------------
         $menu = $event->getAdminMenu();
 
@@ -152,6 +131,10 @@ final class MenuSubscriber implements EventSubscriberInterface
             $activities = new MenuItemModel('activities', 'activities', 'admin_activity', [], 'activity');
             $activities->setChildRoutes(['admin_activity_create', 'activity_details', 'admin_activity_edit', 'admin_activity_delete']);
             $menu->addChild($activities);
+
+            $menu->addChild(
+                new MenuItemModel('public_holiday', 'Public Holidays', 'admin_public_holiday', [], 'calendar')
+            );
         }
 
         if ($auth->isGranted('view_tag')) {

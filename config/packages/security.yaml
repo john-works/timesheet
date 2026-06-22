@@ -84,7 +84,8 @@ security:
     role_hierarchy:
         ROLE_USER: ~
         ROLE_TEAMLEAD: ROLE_USER
-        ROLE_ADMIN: ROLE_TEAMLEAD
+        ROLE_DIRECTOR: ROLE_TEAMLEAD
+        ROLE_ADMIN: ROLE_DIRECTOR
         ROLE_SUPER_ADMIN: ROLE_ADMIN
 
     access_control:

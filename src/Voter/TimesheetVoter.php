@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Form\Model\MultiUserTimesheet;
 use App\Security\RolePermissionManager;
 use App\Timesheet\LockdownService;
+use Doctrine\ORM\EntityManagerInterface as EntityManager;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
@@ -58,7 +59,8 @@ final class TimesheetVoter extends Voter
 
     public function __construct(
         private readonly RolePermissionManager $permissionManager,
-        private readonly LockdownService $lockdownService
+        private readonly LockdownService $lockdownService,
+        private readonly EntityManager $entityManager
     )
     {
     }
@@ -131,6 +133,11 @@ final class TimesheetVoter extends Voter
                 return false;
         }
 
+        // only the owner can edit or delete their own timesheets
+        if (in_array($attribute, [self::EDIT, self::DELETE]) && $subject->getUser()?->getId() !== $user->getId()) {
+            return false;
+        }
+
         if ($subject->getUser()?->getId() === $user->getId()) {
             return $this->permissionManager->hasRolePermission($user, $permission . '_own_timesheet');
         }
@@ -178,6 +185,10 @@ final class TimesheetVoter extends Voter
         }
 
         if (!$this->isAllowedInLockdown($user, $timesheet)) {
+            return false;
+        }
+
+        if (!$this->isAllowedByWeeklySubmission($user, $timesheet)) {
             return false;
         }
 
@@ -233,5 +244,40 @@ final class TimesheetVoter extends Voter
         }
 
         return $this->lockdownService->isEditable($timesheet, $this->now, $this->lockdownGrace);
+    }
+
+    private function isAllowedByWeeklySubmission(User $user, Timesheet $timesheet): bool
+    {
+        if (!class_exists('KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission')) {
+            return true;
+        }
+
+        $begin = $timesheet->getBegin();
+        if ($begin === null) {
+            return true;
+        }
+
+        $weekStart = \DateTimeImmutable::createFromMutable($begin);
+        $dayOfWeek = (int) $weekStart->format('N');
+        if ($dayOfWeek > 1) {
+            $weekStart = $weekStart->modify('-' . ($dayOfWeek - 1) . ' days');
+        }
+        $weekStart = $weekStart->setTime(0, 0, 0);
+
+        try {
+            $repo = $this->entityManager->getRepository('KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission');
+            $submission = $repo->findOneBy([
+                'user' => $user,
+                'weekStart' => $weekStart,
+            ]);
+
+            if ($submission === null) {
+                return true;
+            }
+
+            return !\in_array($submission->getStatus(), ['submitted', 'supervisor_approved'], true);
+        } catch (\Exception) {
+            return true;
+        }
     }
 }

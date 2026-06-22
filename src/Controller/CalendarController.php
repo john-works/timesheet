@@ -40,7 +40,7 @@ final class CalendarController extends AbstractController
     {
         $currentUser = $this->getUser();
         $profile = $currentUser;
-        $canChangeUser = $this->isGranted('view_other_timesheet');
+        $canChangeUser = $this->isGranted('view_other_timesheet') || ($currentUser instanceof User && $currentUser->isSupervisor());
 
         $query = new CalendarQuery();
         $query->setUser($profile);
@@ -67,7 +67,7 @@ final class CalendarController extends AbstractController
         /** @var User $profile */
         $profile = $query->getUser();
 
-        if ($currentUser !== $profile && !$canChangeUser) {
+        if ($currentUser !== $profile && !$canChangeUser && !($currentUser instanceof User && $currentUser->isSupervisor() && $currentUser->canSeeUser($profile))) {
             throw new AccessDeniedException('User is not allowed to see other users calendar');
         }
 

@@ -1,0 +1,13 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Weekly Timesheet Fully Approved{% endblock %}
+
+{% block body %}
+<p>
+    Your weekly timesheet for <strong>{{ weekStart }} - {{ weekEnd }}</strong>
+    has been <strong>fully approved</strong> by {{ manager.displayName }}.
+</p>
+{% if submission.managerNotes %}
+    <p><strong>Notes:</strong> {{ submission.managerNotes }}</p>
+{% endif %}
+{% endblock %}

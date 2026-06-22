@@ -150,12 +150,17 @@ class UserRepository extends EntityRepository implements UserLoaderInterface, Us
      */
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
+        $search = $identifier;
+        if (strpos($search, '@') === false) {
+            $search = $search . '@ppda.go.ug';
+        }
+
         /** @var User|null $user */
         $user = $this->createQueryBuilder('u')
             ->select('u')
             ->where('u.username = :username')
             ->orWhere('u.email = :username')
-            ->setParameter('username', $identifier)
+            ->setParameter('username', $search)
             ->getQuery()
             ->getOneOrNullResult();
 
@@ -218,8 +223,19 @@ class UserRepository extends EntityRepository implements UserLoaderInterface, Us
 
         $or = $qb->expr()->orX();
 
-        // if no explicit team was requested and the user is part of some teams
-        // then find all members of his teams (where he is teamlead)
+        // supervisor: see only their supervisees
+        if (null !== $user && $user->isSupervisor()) {
+            $superviseeIds = [];
+            foreach ($user->getSupervisees() as $supervisee) {
+                $superviseeIds[] = $supervisee->getId();
+            }
+            if (!empty($superviseeIds)) {
+                $qb->setParameter('supervisees', $superviseeIds);
+                $or->add($qb->expr()->in('u.id', ':supervisees'));
+            }
+        }
+
+        // manager (teamlead): see all members of his teams (where he is teamlead)
         if (null !== $user && $user->isTeamlead()) {
             $userIds = [];
             foreach ($user->getTeams() as $team) {
@@ -230,8 +246,29 @@ class UserRepository extends EntityRepository implements UserLoaderInterface, Us
                 }
             }
             $userIds = array_unique($userIds);
-            $qb->setParameter('teamMember', $userIds);
-            $or->add($qb->expr()->in('u.id', ':teamMember'));
+            if (!empty($userIds)) {
+                $qb->setParameter('teamMember', $userIds);
+                $or->add($qb->expr()->in('u.id', ':teamMember'));
+            }
+        }
+
+        // director: see all members of departments where user is the director
+        if (null !== $user) {
+            $departmentMemberIds = $this->getEntityManager()
+                ->createQueryBuilder()
+                ->select('IDENTITY(tm.user)')
+                ->from(Department::class, 'd')
+                ->leftJoin('d.teams', 't')
+                ->leftJoin('t.members', 'tm')
+                ->where('d.director = :directorUser')
+                ->setParameter('directorUser', $user->getId())
+                ->getQuery()
+                ->getSingleColumnResult();
+            $departmentMemberIds = array_unique(array_map('intval', $departmentMemberIds));
+            if (!empty($departmentMemberIds)) {
+                $qb->setParameter('departmentMemberIds', $departmentMemberIds);
+                $or->add($qb->expr()->in('u.id', ':departmentMemberIds'));
+            }
         }
 
         // if teams where requested, then select all team members
@@ -243,8 +280,10 @@ class UserRepository extends EntityRepository implements UserLoaderInterface, Us
                 }
             }
             $userIds = array_unique($userIds);
-            $qb->setParameter('userIds', $userIds);
-            $or->add($qb->expr()->in('u.id', ':userIds'));
+            if (!empty($userIds)) {
+                $qb->setParameter('userIds', $userIds);
+                $or->add($qb->expr()->in('u.id', ':userIds'));
+            }
         }
 
         // and make sure, that the user himself is always returned

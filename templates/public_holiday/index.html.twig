@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Public Holidays</h3>
+                <div class="card-actions">
+                    {% if is_granted('create_activity') %}
+                    <a href="{{ path('admin_public_holiday_create') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Add Holiday
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover" id="publicHolidayTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Holiday Name</th>
+                            <th class="actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for holiday in holidays %}
+                        <tr>
+                            <td>{{ holiday.holidayDate|date('Y-m-d') }}</td>
+                            <td>{{ holiday.name }}</td>
+                            <td class="actions">
+                                {% if is_granted('delete_activity') %}
+                                <a href="{{ path('admin_public_holiday_delete', {'id': holiday.id}) }}" class="btn btn-sm btn-outline-danger confirmation-modal">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center">No public holidays defined yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

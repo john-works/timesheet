@@ -14,6 +14,7 @@ use App\Utils\MenuService;
 use KevinPapst\TablerBundle\Event\MenuEvent;
 use KevinPapst\TablerBundle\Model\MenuItemInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 /**
  * Class MenuBuilder configures the main navigation.
@@ -21,8 +22,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  */
 final class MenuBuilderSubscriber implements EventSubscriberInterface
 {
-    public function __construct(private readonly MenuService $menuService)
-    {
+    public function __construct(
+        private readonly MenuService $menuService,
+        private readonly AuthorizationCheckerInterface $authChecker
+    ) {
     }
 
     public static function getSubscribedEvents(): array
@@ -46,7 +49,7 @@ final class MenuBuilderSubscriber implements EventSubscriberInterface
         if ($menuEvent->getAppsMenu()->hasChildren()) { // @phpstan-ignore-line
             $event->addItem($menuEvent->getAppsMenu()); // @phpstan-ignore-line
         }
-        if ($menuEvent->getAdminMenu()->hasChildren()) {
+        if ($menuEvent->getAdminMenu()->hasChildren() && $this->authChecker->isGranted('ROLE_ADMIN')) {
             $event->addItem($menuEvent->getAdminMenu());
         }
         if ($menuEvent->getSystemMenu()->hasChildren()) {

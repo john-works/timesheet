@@ -53,6 +53,7 @@ final class RuntimeExtensions extends AbstractExtension
             new TwigFilter('colorize', [ThemeExtension::class, 'colorize']),
             new TwigFilter('icon', [RuntimeExtension::class, 'icon']),
             new TwigFilter('sanitize_dde', StringHelper::sanitizeDDE(...)),
+            new TwigFilter('json_decode', fn (?string $str) => $str === null ? null : json_decode($str, true)),
         ];
     }
 }

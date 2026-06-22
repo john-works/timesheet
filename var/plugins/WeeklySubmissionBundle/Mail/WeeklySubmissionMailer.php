@@ -36,6 +36,25 @@ class WeeklySubmissionMailer
         $this->mailer->sendToUser($supervisor, $email);
     }
 
+    public function sendSupervisorApprovedNotification(WeeklySubmission $submission, User $nextApprover): void
+    {
+        $start = $submission->getWeekStart()->format('Y-m-d');
+        $end = $submission->getWeekEnd()->format('Y-m-d');
+
+        $html = $this->twig->render('@WeeklySubmission/emails/supervisor_approved.html.twig', [
+            'submission' => $submission,
+            'staff' => $submission->getUser(),
+            'weekStart' => $start,
+            'weekEnd' => $end,
+        ]);
+
+        $email = (new Email())
+            ->subject(sprintf('[Timesheet] Supervisor approved: %s (%s - %s) awaiting your decision', $submission->getUser()->getDisplayName(), $start, $end))
+            ->html($html);
+
+        $this->mailer->sendToUser($nextApprover, $email);
+    }
+
     public function sendApprovedNotification(WeeklySubmission $submission): void
     {
         $start = $submission->getWeekStart()->format('Y-m-d');
@@ -49,6 +68,25 @@ class WeeklySubmissionMailer
 
         $email = (new Email())
             ->subject(sprintf('[Timesheet] Your weekly submission (%s - %s) was approved', $start, $end))
+            ->html($html);
+
+        $this->mailer->sendToUser($submission->getUser(), $email);
+    }
+
+    public function sendFinalApprovedNotification(WeeklySubmission $submission, User $manager): void
+    {
+        $start = $submission->getWeekStart()->format('Y-m-d');
+        $end = $submission->getWeekEnd()->format('Y-m-d');
+
+        $html = $this->twig->render('@WeeklySubmission/emails/final_approved.html.twig', [
+            'submission' => $submission,
+            'manager' => $manager,
+            'weekStart' => $start,
+            'weekEnd' => $end,
+        ]);
+
+        $email = (new Email())
+            ->subject(sprintf('[Timesheet] Your weekly submission (%s - %s) has been fully approved', $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($submission->getUser(), $email);

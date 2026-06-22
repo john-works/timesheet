@@ -7,7 +7,7 @@
     </div>
     <div class="col-md-4">
         <strong>Total:</strong>
-        <span class="badge bg-primary">{{ (submission.totalDuration / 3600)|number_format(2) }}h</span>
+        <span class="badge bg-primary">{{ (totalDuration / 3600)|number_format(2) }}h</span>
     </div>
 </div>
 
@@ -21,27 +21,32 @@
                 <th>Project</th>
                 <th>Activity</th>
                 <th>Description</th>
-                <th>Duration</th>
-                <th>Rate</th>
+                <th>Start Time</th>
+                <th>End Time</th>
             </tr>
         </thead>
         <tbody>
             {% for entry in timesheets %}
-            <tr>
+            {% set isLeave = entry.activity is not null and entry.activity.name|lower == 'leave' %}
+            <tr class="{{ isLeave ? 'table-info' : '' }}">
                 <td>{{ entry.begin|date('d/m/Y') }}</td>
                 <td>{{ entry.project ? entry.project.name : '-' }}</td>
-                <td>{{ entry.activity ? entry.activity.name : '-' }}</td>
+                <td>
+                    {{ entry.activity ? entry.activity.name : '-' }}
+                    {% if isLeave %}
+                        <span class="badge bg-info">On Leave</span>
+                    {% endif %}
+                </td>
                 <td>{{ entry.description ?: '-' }}</td>
-                <td>{{ (entry.duration / 3600)|number_format(2) }}h</td>
-                <td>{{ entry.rate|number_format(2) }}</td>
+                <td>{{ entry.begin|date('h:i A') }}</td>
+                <td>{{ entry.end ? entry.end|date('h:i A') : '-' }}</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
             <tr class="fw-bold">
-                <td colspan="4" class="text-end">Total:</td>
-                <td>{{ (submission.totalDuration / 3600)|number_format(2) }}h</td>
-                <td>{{ timesheets|reduce((carry, ts) => carry + ts.rate, 0)|number_format(2) }}</td>
+                <td colspan="5" class="text-end">Total:</td>
+                <td>{{ (totalDuration / 3600)|number_format(2) }}h</td>
             </tr>
         </tfoot>
     </table>

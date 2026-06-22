@@ -8,7 +8,7 @@
             <div class="card-header">
                 <h3 class="card-title">My Weekly Timesheet</h3>
                 <div class="card-tools">
-                    <strong>{{ weekStart|date('d/m/Y') }} - {{ weekEnd|date('d/m/Y') }}</strong>
+                    <strong>{{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}</strong>
                 </div>
             </div>
             <div class="card-body">
@@ -19,6 +19,8 @@
                             <span class="badge bg-secondary">Draft</span>
                         {% elseif submission.isSubmitted %}
                             <span class="badge bg-primary">Submitted</span>
+                        {% elseif submission.isSupervisorApproved %}
+                            <span class="badge bg-info">Supervisor Approved</span>
                         {% elseif submission.isApproved %}
                             <span class="badge bg-success">Approved</span>
                         {% elseif submission.isRejected %}
@@ -33,10 +35,19 @@
                         </div>
                     {% endif %}
 
+                    {% if submission.isSupervisorApproved %}
+                        <div class="alert alert-info">
+                            Approved by supervisor on {{ submission.approvedAt|date('d/m/Y H:i') }}.
+                            Waiting for final approval from manager.
+                        </div>
+                    {% endif %}
+
                     {% if submission.isApproved %}
                         <div class="alert alert-success">
-                            Approved by {{ submission.approvedBy.displayName }} on {{ submission.approvedAt|date('d/m/Y H:i') }}.
-                            {% if submission.supervisorNotes %}
+                            Approved by {{ submission.managerApprovedBy.displayName ?: submission.approvedBy.displayName }} on {{ submission.managerApprovedAt ? submission.managerApprovedAt|date('d/m/Y H:i') : submission.approvedAt|date('d/m/Y H:i') }}.
+                            {% if submission.managerNotes %}
+                                <br><strong>Notes:</strong> {{ submission.managerNotes }}
+                            {% elseif submission.supervisorNotes %}
                                 <br><strong>Notes:</strong> {{ submission.supervisorNotes }}
                             {% endif %}
                         </div>
@@ -44,8 +55,10 @@
 
                     {% if submission.isRejected %}
                         <div class="alert alert-danger">
-                            <strong>Rejected</strong> by {{ submission.approvedBy.displayName }} on {{ submission.approvedAt|date('d/m/Y H:i') }}.
-                            {% if submission.supervisorNotes %}
+                            <strong>Rejected</strong> by {{ submission.managerApprovedBy ? submission.managerApprovedBy.displayName : submission.approvedBy.displayName }} on {{ submission.managerApprovedAt ? submission.managerApprovedAt|date('d/m/Y H:i') : submission.approvedAt|date('d/m/Y H:i') }}.
+                            {% if submission.managerNotes %}
+                                <br><strong>Reason:</strong> {{ submission.managerNotes }}
+                            {% elseif submission.supervisorNotes %}
                                 <br><strong>Reason:</strong> {{ submission.supervisorNotes }}
                             {% endif %}
                             <br><br>
@@ -59,11 +72,18 @@
                     <strong>Total hours this week:</strong>
                     {% set hours = (totalDuration / 3600)|number_format(2) %}
                     {{ hours }}h
+                    {% if leaveDays|default([])|length > 0 %}
+                        <br><span class="badge bg-info">{{ leaveDays|length }} day(s) on leave</span>
+                    {% endif %}
                 </div>
 
                 {% if supervisor is null %}
                     <div class="alert alert-warning">
                         You do not have a supervisor assigned. Please contact your administrator.
+                    </div>
+                {% elseif not canSubmit %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-clock"></i> Submission is available on <strong>Friday at 4:00 PM</strong>.
                     </div>
                 {% elseif submission.isDraft %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
@@ -97,7 +117,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong>Week:</strong><br>
-                        {{ weekStart|date('d/m/Y') }} to {{ weekEnd|date('d/m/Y') }}
+                        {{ weekStart|date('d/m/Y') }} to {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}
                     </div>
                     <div class="col-md-6">
                         <strong>Total Hours:</strong><br>
@@ -114,7 +134,7 @@
                 <hr>
                 <p class="text-muted small mb-0">
                     Once submitted, your timesheet will be sent to your supervisor for approval.
-                    You will not be able to modify it until it is either approved or
+                    You will not be able to modify it until it is either fully approved or
                     {% if submission.isRejected -%}
                         rejected again.
                     {%- else -%}
@@ -157,10 +177,12 @@
                     <tbody>
                         {% for entry in history %}
                         <tr>
-                            <td>{{ entry.weekStart|date('d/m/Y') }} - {{ entry.weekEnd|date('d/m/Y') }}</td>
+                            <td>{{ entry.weekStart|date('d/m/Y') }} - {{ entry.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                             <td>
                                 {% if entry.isApproved %}
                                     <span class="badge bg-success">Approved</span>
+                                {% elseif entry.isSupervisorApproved %}
+                                    <span class="badge bg-info">Supervisor Approved</span>
                                 {% elseif entry.isRejected %}
                                     <span class="badge bg-danger">Rejected</span>
                                 {% elseif entry.isSubmitted %}
@@ -170,8 +192,8 @@
                                 {% endif %}
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
-                            <td>{{ entry.approvedBy ? entry.approvedBy.displayName : '-' }}</td>
-                            <td>{{ entry.supervisorNotes ?: '-' }}</td>
+                            <td>{{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.approvedBy ? entry.approvedBy.displayName : '-') }}</td>
+                            <td>{{ entry.managerNotes ?: (entry.supervisorNotes ?: '-') }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

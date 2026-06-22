@@ -188,6 +188,28 @@ final class RolePermissionManager
             return true;
         }
 
+        if ($timesheet->getUser() !== null && $user->isSupervisorOfUser($timesheet->getUser())) {
+            return true;
+        }
+
+        // director sees all timesheets in their departments
+        if ($user->isDirector() && $timesheet->getProject() !== null) {
+            $department = $timesheet->getProject()->getDepartment();
+            if ($department !== null) {
+                if ($department->getDirector()?->getId() === $user->getId()) {
+                    return true;
+                }
+                // Auto-director by title or role: check if user belongs to this department
+                if ($user->hasDirectorTitle() || $user->hasDirectorRole()) {
+                    foreach ($user->getTeams() as $team) {
+                        if ($team->hasDepartment($department)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
         if ($timesheet->getProject() !== null && !$this->checkTeamAccessProject($timesheet->getProject(), $user)) {
             return false;
         }

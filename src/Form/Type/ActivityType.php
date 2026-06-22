@@ -104,9 +104,18 @@ final class ActivityType extends AbstractType
                     $query->setActivityToIgnore($options['ignore_activity']);
                 }
 
-                return $repo->getQueryBuilderForFormType($query);
+                $qb = $repo->getQueryBuilderForFormType($query);
+
+                if (!empty($options['exclude_names'])) {
+                    $qb->andWhere($qb->expr()->notIn('a.name', ':excludeNames'))
+                       ->setParameter('excludeNames', $options['exclude_names']);
+                }
+
+                return $qb;
             };
         });
+
+        $resolver->setDefault('exclude_names', []);
     }
 
     public function buildView(FormView $view, FormInterface $form, array $options): void

@@ -37,6 +37,7 @@ final class UserVoter extends Voter
         'contract',
         'hours',
         'supervisor',
+        'departments',
     ];
 
     public function __construct(private readonly RolePermissionManager $permissionManager)
@@ -101,8 +102,8 @@ final class UserVoter extends Voter
         }
 
         if ($attribute === '2fa') {
-            // can only be activated by the logged-in user for himself or by a super-admin
-            return $subject->getId() === $user->getId() || $user->isSuperAdmin();
+            // 2fa is managed via standard permission checks (2fa_own_profile / 2fa_other_profile)
+            // restricted to admin roles only - see kimai.yaml permissions
         }
 
         if ($attribute === 'supervisor' && $subject->getId() === $user->getId()) {

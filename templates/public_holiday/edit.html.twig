@@ -1,0 +1,18 @@
+{% extends kimai_context.modalRequest ? 'form.html.twig' : 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+    {% set formEditTemplate = kimai_context.modalRequest ? 'default/_form_modal.html.twig' : 'default/_form.html.twig' %}
+    {% set formOptions = {
+        'title': (holiday.id is null ? 'Add Public Holiday' : 'Edit Public Holiday'),
+        'form': form,
+        'back': path('admin_public_holiday')
+    } %}
+    {% embed formEditTemplate with formOptions %}
+        {% block form_body %}
+            {{ form_row(form.holidayDate) }}
+            {{ form_row(form.name) }}
+            {{ form_rest(form) }}
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

@@ -5,4 +5,5 @@ doctrine_migrations:
             table_name: 'migration_versions'
     migrations_paths:
         'DoctrineMigrations': '%kernel.project_dir%/migrations'
+        'KimaiPlugin\WeeklySubmissionBundle\Migrations': '%kernel.project_dir%/var/plugins/WeeklySubmissionBundle/Migrations'
     custom_template: '%kernel.project_dir%/migrations/MigrationTemplate.txt'

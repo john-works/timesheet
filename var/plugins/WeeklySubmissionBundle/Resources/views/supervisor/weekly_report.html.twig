@@ -1,0 +1,64 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Weekly Report</h3>
+                <div class="card-tools float-end">
+                    <form method="get" class="form-inline" style="display:inline-flex;gap:8px;align-items:center;">
+                        <input type="date" name="date" value="{{ weekStart|date('Y-m-d') }}" class="form-control form-control-sm">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Go</button>
+                        <a href="{{ path('weekly_submission_supervisor_weekly_report') }}" class="btn btn-secondary btn-sm">This Week</a>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if data|length == 0 %}
+                    <div class="p-3">
+                        <div class="alert alert-info mb-0">No timesheet data found for this week.</div>
+                    </div>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    <th>Mon<br><small>{{ weekStart|date('d/m') }}</small></th>
+                                    <th>Tue<br><small>{{ weekStart|date_modify('+1 day')|date('d/m') }}</small></th>
+                                    <th>Wed<br><small>{{ weekStart|date_modify('+2 days')|date('d/m') }}</small></th>
+                                    <th>Thu<br><small>{{ weekStart|date_modify('+3 days')|date('d/m') }}</small></th>
+                                    <th>Fri<br><small>{{ weekStart|date_modify('+4 days')|date('d/m') }}</small></th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in data %}
+                                <tr>
+                                    <td>{{ entry.user.displayName }}</td>
+                                    {% for day in [1,2,3,4,5] %}
+                                        <td class="text-end">{{ (entry.days[day] / 3600)|number_format(2) }}h</td>
+                                    {% endfor %}
+                                    <td class="text-end fw-bold">{{ (entry.total / 3600)|number_format(2) }}h</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td>Total</td>
+                                    {% for day in [1,2,3,4,5] %}
+                                        <td class="text-end">{{ (columnTotals[day] / 3600)|number_format(2) }}h</td>
+                                    {% endfor %}
+                                    <td class="text-end">{{ (grandTotal / 3600)|number_format(2) }}h</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

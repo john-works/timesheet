@@ -21,3 +21,9 @@ services:
         factory: ['@doctrine.orm.entity_manager', getRepository]
         arguments: ['KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission']
         autowire: false
+
+    KimaiPlugin\WeeklySubmissionBundle\Repository\PublicHolidayRepository:
+        class: KimaiPlugin\WeeklySubmissionBundle\Repository\PublicHolidayRepository
+        factory: ['@doctrine.orm.entity_manager', getRepository]
+        arguments: ['KimaiPlugin\WeeklySubmissionBundle\Entity\PublicHoliday']
+        autowire: false

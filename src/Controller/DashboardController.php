@@ -91,7 +91,7 @@ final class DashboardController extends AbstractController
 
         // default widgets
         $dashboard = [
-            'PaginatedWorkingTimeChart',
+            //'PaginatedWorkingTimeChart',
             //'UserAmountToday',
             //'UserAmountWeek',
             //'UserAmountMonth',

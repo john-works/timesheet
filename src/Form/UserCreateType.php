@@ -9,6 +9,7 @@
 
 namespace App\Form;
 
+use App\Form\Type\DepartmentType;
 use App\Form\Type\TeamType;
 use App\Form\Type\UserRoleType;
 use App\Form\Type\YesNoType;
@@ -62,6 +63,13 @@ class UserCreateType extends UserEditType
                 'multiple' => true,
                 'expanded' => false,
                 'required' => false,
+            ]);
+
+            $builder->add('directorDepartments', DepartmentType::class, [
+                'multiple' => true,
+                'expanded' => false,
+                'required' => false,
+                'label' => 'director_departments',
             ]);
         }
 

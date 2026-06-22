@@ -157,25 +157,41 @@ class InvoiceRepository extends EntityRepository
             $teams = array_merge($teams, $user->getTeams());
         }
 
+        $directorDeptIds = [];
+        if (null !== $user && $user->isDirector()) {
+            foreach ($user->getDirectorDepartments() as $dept) {
+                $directorDeptIds[] = $dept->getId();
+            }
+        }
+
         $qb->leftJoin('i.department', 'c');
 
-        if (empty($teams)) {
+        if (empty($teams) && empty($directorDeptIds)) {
             $qb->andWhere('SIZE(c.teams) = 0');
 
             return;
         }
 
         $orDepartment = $qb->expr()->orX(
-            'SIZE(c.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'c.teams')
+            'SIZE(c.teams) = 0'
         );
+
+        if (!empty($directorDeptIds)) {
+            $orDepartment->add($qb->expr()->in('i.department', ':directorDepartments'));
+            $qb->setParameter('directorDepartments', $directorDeptIds);
+        }
+
+        if (!empty($teams)) {
+            $orDepartment->add($qb->expr()->isMemberOf(':teams', 'c.teams'));
+
+            $ids = array_values(array_unique(array_map(function (Team $team) {
+                return $team->getId();
+            }, $teams)));
+
+            $qb->setParameter('teams', $ids);
+        }
+
         $qb->andWhere($orDepartment);
-
-        $ids = array_values(array_unique(array_map(function (Team $team) {
-            return $team->getId();
-        }, $teams)));
-
-        $qb->setParameter('teams', $ids);
     }
 
     private function getQueryBuilderForQuery(InvoiceArchiveQuery $query): QueryBuilder

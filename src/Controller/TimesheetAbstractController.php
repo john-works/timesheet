@@ -95,8 +95,8 @@ abstract class TimesheetAbstractController extends AbstractController
             $table->addColumn('rate', ['class' => 'text-end text-nowrap d-none']);
         }
 
-        $table->addColumn('department', ['class' => 'd-none d-md-table-cell']);
-        $table->addColumn('project', ['class' => 'd-none d-xl-table-cell']);
+        $table->addColumn('status', ['class' => 'd-none d-md-table-cell']);
+        $table->addColumn('task', ['class' => 'd-none d-md-table-cell', 'title' => 'task']);
         $table->addColumn('activity', ['class' => 'd-none d-xl-table-cell']);
         $table->addColumn('description', ['class' => 'd-none']);
         $table->addColumn('tags', ['class' => 'd-none', 'orderBy' => false]);
@@ -492,7 +492,7 @@ abstract class TimesheetAbstractController extends AbstractController
             'allow_duration' => $mode->canEditDuration(),
             'duration_minutes' => $this->configuration->getTimesheetIncrementDuration(),
             'timezone' => $this->getDateTimeFactory()->getTimezone(),
-            'department' => true,
+            'department' => false,
             'create_activity' => $this->isGranted('create_activity'),
         ]);
     }
@@ -515,7 +515,7 @@ abstract class TimesheetAbstractController extends AbstractController
             'allow_duration' => $mode->canEditDuration(),
             'duration_minutes' => $this->configuration->getTimesheetIncrementDuration(),
             'timezone' => $this->getDateTimeFactory()->getTimezone(),
-            'department' => true,
+            'department' => false,
         ]);
     }
 

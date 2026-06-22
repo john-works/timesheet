@@ -4,7 +4,7 @@ set -e
 cat > /etc/nginx/sites-available/kimai << 'EOF'
 server {
     listen 80;
-    server_name kimai.local;
+    server_name https://timesheet.ppda.go.ug;
 
     root /var/www/html/kimai/public;
     index index.php;
@@ -36,4 +36,4 @@ rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/kimai /etc/nginx/sites-enabled/kimai
 nginx -t && systemctl reload nginx
 
-echo "Done! Visit http://kimai.local"
+echo "Done! Visit http://https://timesheet.ppda.go.ug"

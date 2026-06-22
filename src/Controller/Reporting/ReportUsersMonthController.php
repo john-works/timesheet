@@ -83,8 +83,8 @@ final class ReportUsersMonthController extends AbstractController
                 }
                 if ($values->getDepartment() !== null) {
                     $query->setDepartment($values->getDepartment());
-                    // Directors with department_reporting can see all members in the selected department
-                    if ($this->isGranted('department_reporting')) {
+                    // Directors can see all members in the selected department
+                    if ($currentUser->hasDirectorTitle() || $currentUser->hasDirectorRole()) {
                         $query->setCurrentUser(null);
                     }
                 }

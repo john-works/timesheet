@@ -116,7 +116,14 @@ class ProjectRepository extends EntityRepository
             $teams = array_merge($teams, $user->getTeams());
         }
 
-        if (empty($teams)) {
+        $directorDeptIds = [];
+        if (null !== $user && $user->isDirector()) {
+            foreach ($user->getDirectorDepartments() as $dept) {
+                $directorDeptIds[] = $dept->getId();
+            }
+        }
+
+        if (empty($teams) && empty($directorDeptIds)) {
             $andX->add('SIZE(c.teams) = 0');
             $andX->add('SIZE(p.teams) = 0');
 
@@ -124,22 +131,31 @@ class ProjectRepository extends EntityRepository
         }
 
         $orProject = $qb->expr()->orX(
-            'SIZE(p.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'p.teams')
+            'SIZE(p.teams) = 0'
         );
-        $andX->add($orProject);
 
         $orDepartment = $qb->expr()->orX(
-            'SIZE(c.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'c.teams')
+            'SIZE(c.teams) = 0'
         );
+
+        if (!empty($directorDeptIds)) {
+            $orProject->add($qb->expr()->in('p.department', ':directorDepartments'));
+            $qb->setParameter('directorDepartments', $directorDeptIds);
+        }
+
+        if (!empty($teams)) {
+            $orProject->add($qb->expr()->isMemberOf(':teams', 'p.teams'));
+            $orDepartment->add($qb->expr()->isMemberOf(':teams', 'c.teams'));
+
+            $ids = array_values(array_unique(array_map(function (Team $team) {
+                return $team->getId();
+            }, $teams)));
+
+            $qb->setParameter('teams', $ids);
+        }
+
+        $andX->add($orProject);
         $andX->add($orDepartment);
-
-        $ids = array_values(array_unique(array_map(function (Team $team) {
-            return $team->getId();
-        }, $teams)));
-
-        $qb->setParameter('teams', $ids);
 
         return $andX;
     }

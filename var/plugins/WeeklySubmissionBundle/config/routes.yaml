@@ -7,3 +7,7 @@ weekly_submission_supervisor:
     resource: ../Controller/SupervisorController.php
     type: attribute
     prefix: /{_locale}/weekly-submission
+
+public_holiday_calendar:
+    resource: ../Controller/PublicHolidayController.php
+    type: attribute

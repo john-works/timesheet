@@ -91,6 +91,13 @@
                     </div>
                     {% endif %}
                 </div>
+                {% if form.directorDepartments is defined %}
+                <div class="row">
+                    <div class="col-md-12">
+                        {{ form_row(form.directorDepartments) }}
+                    </div>
+                </div>
+                {% endif %}
             {% endif %}
 
             {{ form_rest(form) }}

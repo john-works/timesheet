@@ -51,6 +51,9 @@ final class UserFormsSubscriber extends AbstractActionsSubscriber
         if ($this->isGranted('roles', $user)) {
             $event->addAction('roles', ['url' => $this->path('user_profile_roles', ['username' => $user->getUserIdentifier()]), 'title' => 'profile.roles']);
         }
+        if ($this->isGranted('departments', $user)) {
+            $event->addAction('departments', ['url' => $this->path('user_profile_departments', ['username' => $user->getUserIdentifier()]), 'title' => 'departments']);
+        }
         if ($this->isGranted('contract', $user)) {
             $event->addAction('contract', ['url' => $this->path('user_profile_contract', ['username' => $user->getUserIdentifier()]), 'title' => 'work_contract']);
         }

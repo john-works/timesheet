@@ -37,36 +37,47 @@ final class MenuSubscriber implements EventSubscriberInterface
         $user = $auth->getUser();
         $menu = $event->getMenu();
 
-        $submission = new MenuItemModel('weekly_submission', 'Weekly Submission', null, [], 'timesheet');
+        $hasStaff = $auth->isGranted('view_own_timesheet');
+        $isSupervisor = $auth->isGranted('view_other_timesheet')
+            || ($hasStaff && ($this->repository->isTeamLead($user) || $this->repository->countPendingForSupervisor($user) > 0));
 
-        if ($auth->isGranted('view_own_timesheet')) {
-            $submission->addChild(
+        if (!$hasStaff && !$isSupervisor) {
+            return;
+        }
+
+        $weeklySubmission = new MenuItemModel('weekly_submission', 'Weekly Submission', null, [], 'calendar');
+
+        if ($hasStaff) {
+            $weeklySubmission->addChild(
                 new MenuItemModel('weekly_submission_staff', 'My Weekly Timesheet', 'weekly_submission_staff', [], 'timesheet')
             );
         }
 
-        $isSupervisor = $auth->isGranted('view_other_timesheet') || $this->repository->countPendingForSupervisor($user) > 0;
-
         if ($isSupervisor) {
             $pending = $this->repository->countPendingForSupervisor($user);
+            $pendingFinal = $this->repository->countSupervisorApprovedForUser($user);
+            $totalPending = $pending + $pendingFinal;
+
             $label = 'Pending My Approval';
-            if ($pending > 0) {
-                $label .= ' (' . $pending . ')';
+            if ($totalPending > 0) {
+                $label .= ' (' . $totalPending . ')';
             }
             $pendingItem = new MenuItemModel('weekly_submission_supervisor_pending', $label, 'weekly_submission_supervisor_pending', [], 'team');
-            if ($pending > 0) {
-                $pendingItem->setBadge((string) $pending);
+            if ($totalPending > 0) {
+                $pendingItem->setBadge((string) $totalPending);
                 $pendingItem->setBadgeColor('danger');
             }
-            $submission->addChild($pendingItem);
+            $weeklySubmission->addChild($pendingItem);
 
-            $submission->addChild(
+            $weeklySubmission->addChild(
                 new MenuItemModel('weekly_submission_supervisor_history', 'Approval History', 'weekly_submission_supervisor_history', [], 'history')
             );
+
+
         }
 
-        if ($submission->hasChildren()) {
-            $menu->addChild($submission);
+        if ($weeklySubmission->hasChildren()) {
+            $menu->addChild($weeklySubmission);
         }
     }
 }

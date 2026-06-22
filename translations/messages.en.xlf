@@ -206,6 +206,10 @@
         <source>departments</source>
         <target>Departments</target>
       </trans-unit>
+      <trans-unit id="dirDept1" resname="director_departments">
+        <source>director_departments</source>
+        <target>Director departments</target>
+      </trans-unit>
       <trans-unit id="JXfA9Ve" resname="projects">
         <source>projects</source>
         <target>Projects</target>
@@ -1241,6 +1245,10 @@
       <trans-unit id="gT9W2pZ" resname="status.canceled">
         <source>status.canceled</source>
         <target>Canceled</target>
+      </trans-unit>
+      <trans-unit id="task_label" resname="task">
+        <source>task</source>
+        <target>What are you doing?</target>
       </trans-unit>
       <trans-unit id="Zngu6M9" resname="status.planned">
         <source>status.planned</source>

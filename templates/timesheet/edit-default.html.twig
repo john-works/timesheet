@@ -4,18 +4,27 @@
     {% embed formOptions.template with formOptions %}
         {% block form_body %}
             {% if form.begin_date is defined %}
-                <div class="mb-3 row">
-                    <label class="col-form-label col-sm-2 required" for="{{ form.vars.name }}_begin_date">{{ 'begin'|trans }}</label>
+                <div class="mb-3 row" id="leave-row-begin">
+                    <label class="col-form-label col-sm-2 required" for="{{ form.vars.name }}_begin_date">
+                        <span class="leave-label-default">{{ 'begin'|trans }}</span>
+                        <span class="leave-label-leave" style="display:none">Start Date</span>
+                    </label>
                     <div class="col-sm-5">
                         {{ form_widget(form.begin_date, {'label': false}) }}
                         {{ form_errors(form.begin_date, {'label': false}) }}
                     </div>
                     <div class="col-sm-5">
-                        {{ form_widget(form.begin_time, {'label': false}) }}
-                        {{ form_errors(form.begin_time, {'label': false}) }}
+                        <div id="leave-col-time">
+                            {{ form_widget(form.begin_time, {'label': false}) }}
+                            {{ form_errors(form.begin_time, {'label': false}) }}
+                        </div>
+                        <div id="leave-col-enddate" style="display:none">
+                            <input type="date" id="leaveEnd" name="leaveEnd" class="form-control" placeholder="End date">
+                        </div>
                     </div>
                 </div>
             {% endif %}
+            <div id="leave-row-endtime" class="leave-time-field">
             {% if form.end_time is defined or form.duration is defined %}
                 <div class="mb-3 row">
                     <label class="col-form-label col-sm-2" for="{{ form.vars.name }}_duration">
@@ -46,28 +55,69 @@
                     {{ form_row(form.duration, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.duration.vars.name}}) }}
                 {% endif %}
             {% endif %}
+            </div>
+            <div id="leave-row-days" style="display:none" class="mb-3 row">
+                <label class="col-form-label col-sm-2">Duration (Days)</label>
+                <div class="col-sm-10">
+                    <p class="form-control-plaintext" id="leave-days-count">0 day(s)</p>
+                </div>
+            </div>
 
+            <div id="leave-row-break" class="leave-time-field">
             {% if form.break is defined %}
                 {{ form_row(form.break, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.break.vars.name}}) }}
             {% endif %}
+            </div>
             {% if form.department is defined %}
                 {{ form_row(form.department, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.department.vars.name}}) }}
             {% endif %}
             {% if form.project is defined %}
                 <div style="display:none">{{ form_row(form.project) }}</div>
+                <div class="mb-3 row">
+                    <label class="col-form-label col-sm-2 required">{{ 'Organisation'|trans }}</label>
+                    <div class="col-sm-10">
+                        <p class="form-control-plaintext">PPDA</p>
+                    </div>
+                </div>
             {% endif %}
             {% if form.activity is defined %}
                 {{ form_row(form.activity, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.activity.vars.name}}) }}
+                <input type="hidden" id="leaveStart" name="leaveStart" value="">
             {% endif %}
-            {% if form.task is defined %}
-                {{ form_row(form.task, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.task.vars.name}}) }}
+            {% if form.tasks is defined %}
+                <div class="mb-3 row">
+                    <label class="col-form-label col-sm-2">Tasks</label>
+                    <div class="col-sm-10">
+                        <table class="table table-bordered mb-2" id="tasks-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60%">{{ 'What are you doing?'|trans }}</th>
+                                    <th style="width:30%">{{ 'Status'|trans }}</th>
+                                    <th style="width:10%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasks-list">
+                                {% for task in form.tasks %}
+                                    <tr>
+                                        <td>{{ form_widget(task.task, {'attr': {'class': 'form-control', 'placeholder': 'e.g. Working on report, attending meeting, ...'}}) }}</td>
+                                        <td>{{ form_widget(task.status, {'attr': {'class': 'form-control'}}) }}</td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-danger btn-sm remove-task-row" title="Remove">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <button type="button" class="btn btn-success btn-sm" id="add-task-row">
+                            <i class="fas fa-plus"></i> Add task
+                        </button>
+                    </div>
+                </div>
+                {% do form.tasks.setRendered() %}
             {% endif %}
-            {% if form.description is defined %}
-                {{ form_row(form.description, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.description.vars.name}}) }}
-            {% endif %}
-            {% if form.tags is defined %}
-                {{ form_row(form.tags, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.tags.vars.name}}) }}
-            {% endif %}
+
             {% if form.user is defined %}
                 {{ form_row(form.user, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.user.vars.name}}) }}
             {% endif %}
@@ -107,6 +157,129 @@
             {% endif %}
 
             {{ form_rest(form) }}
+
+            <script>
+            (function() {
+                var formPrefix = '{{ form.vars.name }}';
+
+                document.addEventListener('click', function(e) {
+                    var addBtn = e.target.closest('#add-task-row');
+                    if (addBtn) {
+                        var tasksList = document.getElementById('tasks-list');
+                        if (!tasksList) return;
+                        var taskIndex = tasksList.querySelectorAll('tr').length;
+                        var html = '<tr>' +
+                            '<td><input type="text" id="' + formPrefix + '_tasks_' + taskIndex + '_task" name="' + formPrefix + '[tasks][' + taskIndex + '][task]" class="form-control" placeholder="e.g. Working on report, attending meeting, ..."></td>' +
+                            '<td><select id="' + formPrefix + '_tasks_' + taskIndex + '_status" name="' + formPrefix + '[tasks][' + taskIndex + '][status]" class="form-control">' +
+                            '<option value=""></option>' +
+                            '<option value="In Progress">In Progress</option>' +
+                            '<option value="Completed">Completed</option>' +
+                            '<option value="Pending">Pending</option>' +
+                            '</select></td>' +
+                            '<td class="text-center">' +
+                            '<button type="button" class="btn btn-danger btn-sm remove-task-row" title="Remove"><i class="fas fa-trash"></i></button>' +
+                            '</td>' +
+                            '</tr>';
+                        var wrapper = document.createElement('tr');
+                        wrapper.innerHTML = html;
+                        tasksList.appendChild(wrapper);
+                        return;
+                    }
+
+                    var removeBtn = e.target.closest('.remove-task-row');
+                    if (removeBtn) {
+                        var row = removeBtn.closest('tr');
+                        if (row) {
+                            row.remove();
+                        }
+                    }
+                });
+
+                const activitySel = document.getElementById(formPrefix + '_activity');
+                if (!activitySel) return;
+
+                const beginDate = document.getElementById(formPrefix + '_begin_date');
+                const leaveEnd = document.getElementById('leaveEnd');
+                const leaveStartHidden = document.getElementById('leaveStart');
+                const leaveDaysCount = document.getElementById('leave-days-count');
+                const leaveRowDays = document.getElementById('leave-row-days');
+                const leaveColTime = document.getElementById('leave-col-time');
+                const leaveColEnddate = document.getElementById('leave-col-enddate');
+                const leaveRowEndtime = document.getElementById('leave-row-endtime');
+                const leaveRowBreak = document.getElementById('leave-row-break');
+                const leaveLabelDefault = document.querySelector('.leave-label-default');
+                const leaveLabelLeave = document.querySelector('.leave-label-leave');
+
+                function isLeaveSelected() {
+                    const opt = activitySel.options[activitySel.selectedIndex];
+                    return opt && opt.textContent.trim() === 'Leave';
+                }
+
+                function countWeekdays(s, e) {
+                    var count = 0, cur = new Date(s);
+                    while (cur <= e) {
+                        var d = cur.getDay();
+                        if (d !== 0 && d !== 6) count++;
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                    return count;
+                }
+
+                function updateDaysCount() {
+                    if (beginDate && leaveEnd && beginDate.value && leaveEnd.value) {
+                        var start = new Date(beginDate.value);
+                        var end = new Date(leaveEnd.value);
+                        var days = countWeekdays(start, end);
+                        if (days > 0) {
+                            leaveDaysCount.textContent = days + ' day(s)';
+                            return;
+                        }
+                    }
+                    leaveDaysCount.textContent = '0 day(s)';
+                }
+
+                function toggleLeaveMode() {
+                    var leave = isLeaveSelected();
+                    if (leaveColTime) leaveColTime.style.display = leave ? 'none' : '';
+                    if (leaveColEnddate) leaveColEnddate.style.display = leave ? '' : 'none';
+                    if (leaveRowEndtime) leaveRowEndtime.style.display = leave ? 'none' : '';
+                    if (leaveRowBreak) leaveRowBreak.style.display = leave ? 'none' : '';
+                    if (leaveRowDays) leaveRowDays.style.display = leave ? '' : 'none';
+                    if (leaveLabelDefault) leaveLabelDefault.style.display = leave ? 'none' : '';
+                    if (leaveLabelLeave) leaveLabelLeave.style.display = leave ? '' : 'none';
+
+                    if (leave && beginDate && leaveStartHidden) {
+                        leaveStartHidden.value = beginDate.value;
+                    }
+                    updateDaysCount();
+                }
+
+                if (beginDate) beginDate.addEventListener('change', function() {
+                    if (isLeaveSelected()) {
+                        if (leaveStartHidden) leaveStartHidden.value = beginDate.value;
+                        if (leaveEnd && !leaveEnd.value) leaveEnd.value = beginDate.value;
+                        updateDaysCount();
+                    }
+                });
+                if (leaveEnd) leaveEnd.addEventListener('change', updateDaysCount);
+
+                var form = activitySel.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        if (isLeaveSelected()) {
+                            if (leaveStartHidden) leaveStartHidden.value = beginDate ? beginDate.value : '';
+                            if (!beginDate || !beginDate.value || !leaveEnd || !leaveEnd.value) {
+                                e.preventDefault();
+                                alert('Please enter both start and end dates.');
+                            }
+                        }
+                    });
+                }
+
+                activitySel.addEventListener('change', toggleLeaveMode);
+                toggleLeaveMode();
+            })();
+            </script>
         {% endblock %}
     {% endembed %}
 {% endblock %}

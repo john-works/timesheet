@@ -122,10 +122,22 @@
         {% else %}
             {{ entry.internalRate|money(departmentCurrency) }}
         {% endif %}
-    {% elseif column == 'department' %}
-        {{ widgets.label_department(entry.project.department) }}
-    {% elseif column == 'project' %}
-        {{ widgets.label_project(entry.project) }}
+    {% elseif column == 'status' %}
+        {% set taskData = entry.description|json_decode %}
+        {% if taskData is iterable %}
+            {% for taskItem in taskData %}
+                {{ taskItem.status }}{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+        {% endif %}
+    {% elseif column == 'task' %}
+        {% set taskData = entry.description|json_decode %}
+        {% if taskData is iterable %}
+            {% for taskItem in taskData %}
+                {{ taskItem.task }}{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+        {% else %}
+            {{ entry.description|nl2br }}
+        {% endif %}
     {% elseif column == 'activity' %}
         {% if entry.activity is not null %}
             {{ widgets.label_activity(entry.activity) }}

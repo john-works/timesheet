@@ -60,7 +60,9 @@ final class DefaultMode extends AbstractTrackingMode
         parent::create($timesheet, $request);
 
         if (null === $timesheet->getBegin()) {
-            $timesheet->setBegin(new DateTime('now', $this->getTimezone($timesheet)));
+            $begin = new DateTime('now', $this->getTimezone($timesheet));
+            $begin->setTime(8, 0, 0);
+            $timesheet->setBegin($begin);
         }
 
         $this->rounding->roundBegin($timesheet);

@@ -116,11 +116,7 @@ class DepartmentRepository extends EntityRepository
             return $andX;
         }
 
-        $or = $qb->expr()->orX(
-            'SIZE(c.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'c.teams')
-        );
-        $andX->add($or);
+        $andX->add($qb->expr()->isMemberOf(':teams', 'c.teams'));
 
         $ids = array_values(array_unique(array_map(function (Team $team) {
             return $team->getId();

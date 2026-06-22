@@ -52,8 +52,8 @@ abstract class AbstractTrackingMode implements TrackingModeInterface
             return;
         }
 
-        $start->setTime(10, 0, 0);
-        $end->setTime(18, 0, 0);
+        $start->setTime(8, 0, 0);
+        $end->setTime(17, 0, 0);
 
         $entry->setEnd($end);
         $entry->setDuration($end->getTimestamp() - $start->getTimestamp());

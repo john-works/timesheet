@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Monthly Report</h3>
+                <div class="card-tools float-end">
+                    <form method="get" class="form-inline" style="display:inline-flex;gap:8px;align-items:center;">
+                        <input type="month" name="month" value="{{ selectedMonth }}" class="form-control form-control-sm">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Go</button>
+                        <a href="{{ path('weekly_submission_supervisor_monthly_report') }}" class="btn btn-secondary btn-sm">This Month</a>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if data|length == 0 %}
+                    <div class="p-3">
+                        <div class="alert alert-info mb-0">No timesheet data found for this month.</div>
+                    </div>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    {% for week in allWeeks %}
+                                        <th class="text-end">Week {{ week }}</th>
+                                    {% endfor %}
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in data %}
+                                <tr>
+                                    <td>{{ entry.user.displayName }}</td>
+                                    {% for week in allWeeks %}
+                                        <td class="text-end">{{ (entry.weeks[week] ?? 0 / 3600)|number_format(2) }}h</td>
+                                    {% endfor %}
+                                    <td class="text-end fw-bold">{{ (entry.total / 3600)|number_format(2) }}h</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td>Total</td>
+                                    {% for week in allWeeks %}
+                                        <td class="text-end">{{ (columnTotals[week] ?? 0 / 3600)|number_format(2) }}h</td>
+                                    {% endfor %}
+                                    <td class="text-end">{{ (grandTotal / 3600)|number_format(2) }}h</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

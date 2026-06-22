@@ -100,6 +100,8 @@ final class TimesheetController extends BaseApiController
         $this->prepareQuery($query, $paramFetcher);
         $seeAll = false;
 
+        $currentUser = $this->getUser();
+
         if ($this->isGranted('view_other_timesheet')) {
             /** @var array<int> $users */
             $users = $paramFetcher->get('users');
@@ -114,6 +116,21 @@ final class TimesheetController extends BaseApiController
             if (!$seeAll) {
                 foreach ($userRepository->findByIds($users) as $user) {
                     $query->addUser($user);
+                }
+            }
+        } elseif ($currentUser instanceof User && $currentUser->isSupervisor()) {
+            $userId = $paramFetcher->get('user');
+            if (\is_string($userId) && $userId !== '') {
+                $superviseeIds = [];
+                foreach ($currentUser->getSupervisees() as $supervisee) {
+                    $superviseeIds[] = $supervisee->getId();
+                }
+                $userIdInt = (int) $userId;
+                if (\in_array($userIdInt, $superviseeIds, true)) {
+                    $supervisee = $userRepository->find($userIdInt);
+                    if ($supervisee !== null) {
+                        $query->addUser($supervisee);
+                    }
                 }
             }
         }

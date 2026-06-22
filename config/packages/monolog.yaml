@@ -1,5 +1,5 @@
 monolog:
-    channels: ["deprecation"]
+    channels: ["deprecation", "login"]
 
 when@prod:
     monolog:
@@ -14,16 +14,23 @@ when@prod:
                     - 403
                     - 404
                     - {405: ['/homepage$', '/login_check$', '/export/data$']}
-                channels: ["!deprecation"]
+                channels: ["!deprecation", "!login"]
+            login:
+                type: stream
+                level: info
+                path: "%kernel.logs_dir%/login.log"
+                formatter: monolog.formatter.kimai
+                channels: ["login"]
             file_log:
                 type: stream
                 level: info
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 formatter: monolog.formatter.kimai
+                channels: ["!login"]
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine", "!deprecation"]
+                channels: ["!event", "!doctrine", "!deprecation", "!login"]
 
 when@dev:
     monolog:

@@ -81,6 +81,7 @@ tabler:
         import: fas fa-file-import
         invoice: fas fa-file-contract
         invoice-template: fas fa-file-signature
+        leave: fas fa-calendar-alt
         left: fas fa-chevron-left
         left2: fas fa-angle-double-left
         link: fas fa-link

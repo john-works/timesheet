@@ -10,6 +10,7 @@
 namespace App\Repository;
 
 use App\Entity\ActivityRate;
+use App\Entity\Department;
 use App\Entity\DepartmentRate;
 use App\Entity\Project;
 use App\Entity\ProjectRate;
@@ -417,7 +418,15 @@ class TimesheetRepository extends EntityRepository
             $teams = array_merge($teams, $user->getTeams());
         }
 
-        if (empty($teams)) {
+        // collect director department IDs early for use in bypass check
+        $directorDeptIds = [];
+        if (null !== $user && $user->isDirector()) {
+            foreach ($user->getDirectorDepartments() as $dept) {
+                $directorDeptIds[] = $dept->getId();
+            }
+        }
+
+        if (empty($teams) && empty($directorDeptIds)) {
             $qb->andWhere('SIZE(c.teams) = 0');
             $qb->andWhere('SIZE(p.teams) = 0');
 
@@ -425,22 +434,107 @@ class TimesheetRepository extends EntityRepository
         }
 
         $orProject = $qb->expr()->orX(
-            'SIZE(p.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'p.teams')
+            'SIZE(p.teams) = 0'
         );
-        $qb->andWhere($orProject);
 
         $orDepartment = $qb->expr()->orX(
-            'SIZE(c.teams) = 0',
-            $qb->expr()->isMemberOf(':teams', 'c.teams')
+            'SIZE(c.teams) = 0'
         );
-        $qb->andWhere($orDepartment);
 
-        $ids = array_values(array_unique(array_map(function (Team $team) {
-            return $team->getId();
-        }, $teams)));
+        if (!empty($teams)) {
+            $orProject->add($qb->expr()->isMemberOf(':teams', 'p.teams'));
+            $orDepartment->add($qb->expr()->isMemberOf(':teams', 'c.teams'));
+        }
 
-        $qb->setParameter('teams', $ids);
+        $permissionCriteria = $qb->expr()->andX(
+            $orProject,
+            $orDepartment
+        );
+
+        // always allow users to see their own timesheets and their supervisees' timesheets
+        if (null !== $user) {
+            $userOr = $qb->expr()->orX(
+                $qb->expr()->eq('t.user', ':permissionSelf')
+            );
+            $qb->setParameter('permissionSelf', $user->getId());
+
+            // supervisor: sees all timesheets of their supervisees
+            if ($user->isSupervisor()) {
+                $superviseeIds = [];
+                foreach ($user->getSupervisees() as $supervisee) {
+                    $superviseeIds[] = $supervisee->getId();
+                }
+                if (!empty($superviseeIds)) {
+                    $userOr->add($qb->expr()->in('t.user', ':permissionSupervisees'));
+                    $qb->setParameter('permissionSupervisees', $superviseeIds);
+                }
+            }
+
+            // manager (teamlead): sees all timesheets of their team members
+            if ($user->isTeamlead()) {
+                $teamMemberIds = [];
+                foreach ($user->getTeams() as $team) {
+                    if ($user->isTeamleadOf($team)) {
+                        foreach ($team->getUsers() as $teamUser) {
+                            if ($teamUser->getId() !== $user->getId()) {
+                                $teamMemberIds[] = $teamUser->getId();
+                            }
+                        }
+                    }
+                }
+                $teamMemberIds = array_unique($teamMemberIds);
+                if (!empty($teamMemberIds)) {
+                    $userOr->add($qb->expr()->in('t.user', ':permissionTeamMembers'));
+                    $qb->setParameter('permissionTeamMembers', $teamMemberIds);
+                }
+            }
+
+            // director: sees all timesheets of users in their departments' teams
+            if (!empty($directorDeptIds)) {
+                $qb2 = $this->getEntityManager()->createQueryBuilder();
+                $qb2->select('u.id')
+                    ->from(Team::class, 't')
+                    ->join('t.members', 'm')
+                    ->join('m.user', 'u')
+                    ->join('t.departments', 'd')
+                    ->where($qb2->expr()->in('d.id', ':deptIds'))
+                    ->andWhere('u.id != :currentUser')
+                    ->setParameter('deptIds', $directorDeptIds)
+                    ->setParameter('currentUser', $user->getId());
+
+                $result = $qb2->getQuery()->getScalarResult();
+                $directorDeptUserIds = array_unique(array_map('intval', array_column($result, 'id')));
+
+                if (!empty($directorDeptUserIds)) {
+                    $userOr->add($qb->expr()->in('t.user', ':directorDepartmentsUsers'));
+                    $qb->setParameter('directorDepartmentsUsers', $directorDeptUserIds);
+                }
+            }
+
+            $permissionCriteria = $qb->expr()->orX(
+                $permissionCriteria,
+                $userOr
+            );
+        }
+
+        // directors also see timesheets for projects in their departments (fallback)
+        if (!empty($directorDeptIds)) {
+            $permissionCriteria = $qb->expr()->orX(
+                $permissionCriteria,
+                $qb->expr()->in('p.department', ':directorDepartments')
+            );
+            $qb->setParameter('directorDepartments', $directorDeptIds);
+        }
+
+        $qb->andWhere($permissionCriteria);
+
+        if (!empty($teams)) {
+            $ids = array_values(array_unique(array_map(function (Team $team) {
+                return $team->getId();
+            }, $teams)));
+
+            $qb->setParameter('teams', $ids);
+        }
 
         return true;
     }
@@ -564,16 +658,29 @@ class TimesheetRepository extends EntityRepository
         $user = array_merge($user, $query->getUsers());
 
         if (\count($user) === 0 && null !== ($currentUser = $query->getCurrentUser()) && !$currentUser->canSeeAllData()) {
-            // make sure that the user himself is in the list of users, if he is part of a team
-            // if teams are used and the user is not a teamlead, the list of users would be empty and then leading to NOT limit the select by user IDs
             $user[] = $currentUser;
 
             if (!$query->hasTeams()) {
+                // manager: add team members from teams where user is teamlead
                 foreach ($currentUser->getTeams() as $team) {
                     if ($currentUser->isTeamleadOf($team)) {
                         $query->addTeam($team);
                     }
                 }
+            }
+
+            // director: add all users from departments where current user is director
+            if ($currentUser->isDirector()) {
+                foreach ($currentUser->getDirectorDepartments() as $department) {
+                    foreach ($department->getTeams() as $deptTeam) {
+                        $query->addTeam($deptTeam);
+                    }
+                }
+            }
+
+            // supervisor: add supervisees
+            foreach ($currentUser->getSupervisees() as $supervisee) {
+                $user[] = $supervisee;
             }
         }
 

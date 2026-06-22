@@ -34,7 +34,13 @@ class LdapManager
     {
         $params = $this->config->getUserParameters();
 
-        $criteria = [$params['usernameAttribute'] => $username];
+        $searchUsername = $username;
+        $atPos = strpos($searchUsername, '@');
+        if ($atPos !== false) {
+            $searchUsername = substr($searchUsername, 0, $atPos);
+        }
+
+        $criteria = [$params['usernameAttribute'] => $searchUsername];
 
         $params = $this->config->getUserParameters();
         $filter = $this->buildFilter($criteria);

@@ -78,7 +78,7 @@ final class StrictPolicy implements SecurityPolicyInterface
         'month_name', 'day_name', 'date_short', 'date_time', 'date_full', 'date_format',
         'date_weekday', 'time', 'duration', 'duration_decimal', 'money', 'amount',
         // src/Twig/RuntimeExtensions.php
-        'md2html', 'desc2html', 'comment2html', 'comment1line',
+        'md2html', 'desc2html', 'comment2html', 'comment1line', 'json_decode',
         // src/Twig/Extensions.php
         'multiline_indent', 'color', 'nl2str'
     ];

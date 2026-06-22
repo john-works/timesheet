@@ -53,6 +53,7 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
 {
     public const ROLE_USER = 'ROLE_USER';
     public const ROLE_TEAMLEAD = 'ROLE_TEAMLEAD';
+    public const ROLE_DIRECTOR = 'ROLE_DIRECTOR';
     public const ROLE_ADMIN = 'ROLE_ADMIN';
     public const ROLE_SUPER_ADMIN = 'ROLE_SUPER_ADMIN';
 
@@ -229,12 +230,26 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
     #[Serializer\Expose]
     #[Serializer\Groups(['Default'])]
     private bool $systemAccount = false;
-    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'supervisees')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Serializer\Expose]
     #[Serializer\Groups(['User_Entity'])]
     #[OA\Property(ref: '#/components/schemas/User')]
     private ?User $supervisor = null;
+
+    /**
+     * @var Collection<User>
+     */
+    #[ORM\OneToMany(mappedBy: 'supervisor', targetEntity: User::class)]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['User_Entity'])]
+    private Collection $supervisees;
+
+    /**
+     * @var Collection<Department>
+     */
+    #[ORM\OneToMany(mappedBy: 'director', targetEntity: Department::class)]
+    private Collection $directorDepartments;
 
     use ColorTrait;
 
@@ -243,6 +258,8 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
         $this->registeredAt = new DateTime();
         $this->preferences = new ArrayCollection();
         $this->memberships = new ArrayCollection();
+        $this->supervisees = new ArrayCollection();
+        $this->directorDepartments = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -617,6 +634,26 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
      *
      * @see User::hasTeamleadRole()
      */
+    public function hasManagerTitle(): bool
+    {
+        $title = $this->getTitle();
+        if ($title === null || $title === '') {
+            return false;
+        }
+
+        return stripos($title, 'manager') !== false;
+    }
+
+    public function hasDirectorTitle(): bool
+    {
+        $title = $this->getTitle();
+        if ($title === null || $title === '') {
+            return false;
+        }
+
+        return stripos($title, 'director') !== false;
+    }
+
     public function isTeamlead(): bool
     {
         foreach ($this->memberships as $membership) {
@@ -625,7 +662,7 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
             }
         }
 
-        return false;
+        return $this->hasManagerTitle();
     }
 
     /**
@@ -665,6 +702,29 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
 
         if ($this->isTeamleadOfUser($user)) {
             return true;
+        }
+
+        if ($this->isSupervisorOfUser($user)) {
+            return true;
+        }
+
+        if ($this->isDirector()) {
+            foreach ($this->directorDepartments as $department) {
+                foreach ($department->getTeams() as $team) {
+                    if ($team->hasUser($user)) {
+                        return true;
+                    }
+                }
+            }
+            if ($this->hasDirectorTitle() || $this->hasDirectorRole()) {
+                foreach ($this->getDepartments() as $department) {
+                    foreach ($department->getTeams() as $team) {
+                        if ($team->hasUser($user)) {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
 
         return false;
@@ -736,22 +796,97 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
 
     public function isTeamleadOf(Team $team): bool
     {
-        if (null !== ($member = $this->findMemberByTeam($team))) {
-            return $member->isTeamlead();
+        $member = $this->findMemberByTeam($team);
+        if ($member === null) {
+            return false;
         }
 
-        return false;
+        return $member->isTeamlead() || $this->hasManagerTitle();
     }
 
     public function isTeamleadOfUser(User $user): bool
     {
         foreach ($this->memberships as $membership) {
-            if ($membership->isTeamlead() && $membership->getTeam() !== null && $membership->getTeam()->hasUser($user)) {
-                return true;
+            if ($membership->getTeam() !== null && $membership->getTeam()->hasUser($user)) {
+                if ($membership->isTeamlead() || $this->hasManagerTitle()) {
+                    return true;
+                }
             }
         }
 
         return false;
+    }
+
+    public function isSupervisorOfUser(User $user): bool
+    {
+        return $user->getSupervisor() !== null && $user->getSupervisor()->getId() === $this->getId();
+    }
+
+    public function isSupervisor(): bool
+    {
+        return !$this->supervisees->isEmpty();
+    }
+
+    /**
+     * @return Collection<Department>
+     */
+    public function getDirectorDepartments(): Collection
+    {
+        return $this->directorDepartments;
+    }
+
+    public function addDirectorDepartment(Department $department): void
+    {
+        if ($this->directorDepartments->contains($department)) {
+            return;
+        }
+
+        $this->directorDepartments->add($department);
+        $department->setDirector($this);
+    }
+
+    public function removeDirectorDepartment(Department $department): void
+    {
+        if (!$this->directorDepartments->contains($department)) {
+            return;
+        }
+
+        $this->directorDepartments->removeElement($department);
+        $department->setDirector(null);
+    }
+
+    public function isDirector(): bool
+    {
+        if (!$this->directorDepartments->isEmpty()) {
+            return true;
+        }
+
+        if ($this->hasDirectorRole()) {
+            return true;
+        }
+
+        return $this->hasDirectorTitle();
+    }
+
+    /**
+     * @return array<int, Department>
+     */
+    public function getDepartments(): array
+    {
+        $departments = [];
+        foreach ($this->memberships as $membership) {
+            $team = $membership->getTeam();
+            if ($team !== null) {
+                foreach ($team->getDepartments() as $department) {
+                    $id = $department->getId();
+                    if ($id !== null) {
+                        $departments[$id] = $department;
+                    }
+                }
+            }
+        }
+
+        return array_values($departments);
     }
 
     public function canSeeAllData(): bool
@@ -779,6 +914,11 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
     public function hasTeamleadRole(): bool
     {
         return $this->hasRole(static::ROLE_TEAMLEAD);
+    }
+
+    public function hasDirectorRole(): bool
+    {
+        return $this->hasRole(static::ROLE_DIRECTOR);
     }
 
     public function isAdmin(): bool
@@ -1470,6 +1610,14 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
         $this->supervisor = $supervisor;
     }
 
+    /**
+     * @return Collection<int, User>
+     */
+    public function getSupervisees(): Collection
+    {
+        return $this->supervisees;
+    }
+
     public function getWorkContractMode(): string
     {
         return (string) $this->getPreferenceValue(UserPreference::WORK_CONTRACT_TYPE, WorkingTimeModeNone::ID);
@@ -1478,5 +1626,15 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
     public function setWorkContractMode(string $mode): void
     {
         $this->setPreferenceValue(UserPreference::WORK_CONTRACT_TYPE, $mode);
+    }
+
+    public function setAdDepartment(string $department): void
+    {
+        $this->setPreferenceValue('ad_department', $department);
+    }
+
+    public function setAdCompany(string $company): void
+    {
+        $this->setPreferenceValue('ad_company', $company);
     }
 }

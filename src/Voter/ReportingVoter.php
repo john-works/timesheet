@@ -57,6 +57,9 @@ final class ReportingVoter extends Voter
 
         switch ($attribute) {
             case 'report:department':
+                if ($user->hasDirectorTitle() || $user->hasDirectorRole()) {
+                    break;
+                }
                 $permissions[] = 'department_reporting';
                 break;
 

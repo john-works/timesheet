@@ -45,17 +45,6 @@ final class ReportingService
                 if ($this->security->isGranted('details', 'project')) {
                     $event->addReport(new Report('project_details', 'report_project_details', 'report_project_details', 'project'));
                 }
-                if ($this->security->isGranted('budget_any', 'project')) {
-                    $event->addReport(new Report('project_view', 'report_project_view', 'report_project_view', 'project'));
-                    $event->addReport(new Report('daterange_projects', 'report_project_daterange', 'report_project_daterange', 'project'));
-                    $event->addReport(new Report('inactive_projects', 'report_project_inactive', 'report_inactive_project', 'project'));
-                }
-            }
-
-            if ($this->security->isGranted('report:department')) {
-                if ($viewOther) {
-                    $event->addReport(new Report('report_department_monthly_projects', 'report_department_monthly_projects', 'report_department_monthly_projects', 'department'));
-                }
             }
 
             $this->dispatcher->dispatch($event);

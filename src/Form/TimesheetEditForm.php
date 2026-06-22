@@ -12,6 +12,7 @@ namespace App\Form;
 use App\Configuration\SystemConfiguration;
 use App\Entity\Department;
 use App\Entity\Timesheet;
+use App\Form\Model\TaskRow;
 use App\Form\Type\DepartmentType;
 use App\Form\Type\DatePickerType;
 use App\Form\Type\DescriptionType;
@@ -21,17 +22,19 @@ use App\Form\Type\HourlyRateType;
 use App\Form\Type\InternalRateType;
 use App\Form\Type\MetaFieldsCollectionType;
 use App\Form\Type\TagsType;
+use App\Form\Type\TaskRowType;
 use App\Form\Type\TimePickerType;
 use App\Form\Type\TimesheetBillableType;
 use App\Form\Type\UserType;
 use App\Form\Type\YesNoType;
+use App\Entity\Project;
 use App\Repository\DepartmentRepository;
 use App\Repository\Query\DepartmentFormTypeQuery;
+use App\Repository\ProjectRepository;
 use App\Timesheet\Calculator\BillableCalculator;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -48,7 +51,7 @@ class TimesheetEditForm extends AbstractType
     public function __construct(
         private readonly DepartmentRepository $departments,
         private readonly SystemConfiguration $systemConfiguration,
-        private readonly EntityManagerInterface $entityManager
+        private readonly ProjectRepository $projectRepository
     )
     {
     }
@@ -83,6 +86,13 @@ class TimesheetEditForm extends AbstractType
 
             if (null !== ($begin = $entry->getBegin())) {
                 $timezone = $begin->getTimezone()->getName();
+            }
+        }
+
+        if ($department === null && isset($options['user']) && $options['user'] instanceof \App\Entity\User) {
+            $userDepartments = $options['user']->getDepartments();
+            if (!empty($userDepartments)) {
+                $department = $userDepartments[0];
             }
         }
 
@@ -131,22 +141,27 @@ class TimesheetEditForm extends AbstractType
             ]);
         }
 
-        // hidden project field pre-set to PPDA for activity cascading
+        // hidden project field pre-set for activity cascading
         if ($project === null) {
-            $project = $this->entityManager->getRepository(\App\Entity\Project::class)->find(4);
+            $project = $this->projectRepository->findOneBy(['visible' => true], ['id' => 'ASC']);
         }
-        $this->addProject($builder, $isNew, $project, $department);
+        $this->addProject($builder, $isNew, $project, $department, ['label' => 'Organisation', 'placeholder' => 'PPDA']);
 
         // visible activity dropdown
         $this->addActivity($builder, $activity, $project, [
             'allow_create' => false,
+            'exclude_names' => $isNew ? ['Leave', 'Public Holiday'] : [],
         ]);
 
-        $builder->add('task', TextType::class, [
+        $builder->add('tasks', CollectionType::class, [
+            'entry_type' => TaskRowType::class,
+            'entry_options' => ['label' => false],
+            'allow_add' => true,
+            'allow_delete' => true,
+            'prototype' => true,
+            'by_reference' => false,
             'mapped' => false,
-            'required' => false,
-            'label' => 'What are you doing?',
-            'attr' => ['placeholder' => 'e.g. Working on report, attending meeting, ...', 'rows' => 3],
+            'label' => false,
         ]);
 
         $builder->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $event): void {
@@ -155,9 +170,24 @@ class TimesheetEditForm extends AbstractType
                 return;
             }
             $desc = $timesheet->getDescription();
-            if (!empty($desc)) {
-                $event->getForm()->get('task')->setData($desc);
+            if (empty($desc)) {
+                return;
             }
+            $rows = json_decode($desc, true);
+            if (!\is_array($rows)) {
+                return;
+            }
+            $taskRows = [];
+            foreach ($rows as $row) {
+                if (!\is_array($row)) {
+                    continue;
+                }
+                $taskRow = new TaskRow();
+                $taskRow->task = (\array_key_exists('task', $row) ? (string) $row['task'] : null);
+                $taskRow->status = (\array_key_exists('status', $row) ? (string) $row['status'] : null);
+                $taskRows[] = $taskRow;
+            }
+            $event->getForm()->get('tasks')->setData($taskRows);
         });
 
         $builder->addEventListener(FormEvents::SUBMIT, function (FormEvent $event): void {
@@ -166,26 +196,32 @@ class TimesheetEditForm extends AbstractType
                 return;
             }
 
-            $task = $event->getForm()->get('task')->getData();
-
-            if (!empty($task)) {
-                $timesheet->setDescription($task);
+            $taskRows = $event->getForm()->get('tasks')->getData();
+            $rows = [];
+            if (\is_array($taskRows) || $taskRows instanceof \Traversable) {
+                foreach ($taskRows as $taskRow) {
+                    if ($taskRow instanceof TaskRow && !empty($taskRow->task)) {
+                        $rows[] = [
+                            'task' => $taskRow->task,
+                            'status' => $taskRow->status,
+                        ];
+                    }
+                }
+            }
+            $json = json_encode($rows);
+            if (!empty($rows) && $json !== false) {
+                $timesheet->setDescription($json);
             }
 
             if ($timesheet->getProject() === null) {
-                $project = $this->entityManager->getRepository(\App\Entity\Project::class)->find(4);
+                $project = $this->projectRepository->findOneBy(['visible' => true], ['id' => 'ASC']);
                 if ($project !== null) {
                     $timesheet->setProject($project);
                 }
             }
         });
 
-        $descriptionOptions = ['required' => false];
-        if (!$isNew) {
-            $descriptionOptions['attr'] = ['autofocus' => 'autofocus'];
-        }
-        $builder->add('description', DescriptionType::class, $descriptionOptions);
-        $builder->add('tags', TagsType::class, ['required' => false]);
+
         $this->addRates($builder, $currency, $options);
         $this->addUser($builder, $options);
         $builder->add('metaFields', MetaFieldsCollectionType::class);

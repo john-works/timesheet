@@ -61,6 +61,7 @@ final class FormLoginLdapFactory extends AbstractFactory implements Authenticato
         $container->setDefinition('security.listener.' . $key . '.' . $firewallName, new Definition(LdapCredentialsSubscriber::class))
             ->addTag('kernel.event_subscriber', ['dispatcher' => 'security.event_dispatcher.' . $firewallName])
             ->addArgument(new Reference(LdapManager::class))
+            ->addArgument(new Reference('monolog.logger.login'))
         ;
 
         $ldapAuthenticatorId = 'security.authenticator.' . $key . '.' . $firewallName;

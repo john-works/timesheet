@@ -22,6 +22,7 @@ use App\Form\UserEditType;
 use App\Form\UserPasswordType;
 use App\Form\UserPreferencesForm;
 use App\Form\UserRolesType;
+use App\Form\UserDepartmentsType;
 use App\Form\UserTeamsType;
 use App\Form\UserTwoFactorType;
 use App\Repository\AccessTokenRepository;
@@ -364,6 +365,38 @@ final class ProfileController extends AbstractController
         return $this->render('user/form.html.twig', [
             'tab' => 'teams',
             'page_setup' => $this->getPageSetup($profile, 'teams'),
+            'user' => $profile,
+            'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route(path: '/{username}/departments', name: 'user_profile_departments', methods: ['GET', 'POST'])]
+    #[IsGranted('departments', 'profile')]
+    public function departmentsAction(
+        #[MapEntity(mapping: ['username' => 'username'])]
+        User $profile,
+        Request $request,
+        UserRepository $userRepository
+    ): Response
+    {
+        $form = $this->createForm(UserDepartmentsType::class, $profile, [
+            'action' => $this->generateUrl('user_profile_departments', ['username' => $profile->getUserIdentifier()]),
+            'method' => 'POST',
+        ]);
+
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $userRepository->saveUser($profile);
+
+            $this->flashSuccess('action.update.success');
+
+            return $this->redirectToRoute('user_profile_departments', ['username' => $profile->getUserIdentifier()]);
+        }
+
+        return $this->render('user/form.html.twig', [
+            'tab' => 'departments',
+            'page_setup' => $this->getPageSetup($profile, 'departments'),
             'user' => $profile,
             'form' => $form->createView(),
         ]);

@@ -70,6 +70,12 @@ class Department implements EntityWithMetaFields, EntityWithBudget, CreatedAt
     #[Serializer\Groups(['Default'])]
     #[Exporter\Expose(label: 'visible', type: 'boolean')]
     private bool $visible = true;
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'directorDepartments')]
+    #[ORM\JoinColumn(name: 'director_id', nullable: true, onDelete: 'SET NULL')]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['Department'])]
+    private ?User $director = null;
+
     #[ORM\Column(name: 'billable', type: Types::BOOLEAN, nullable: false, options: ['default' => true])]
     #[Assert\NotNull]
     #[Serializer\Expose]
@@ -295,6 +301,16 @@ class Department implements EntityWithMetaFields, EntityWithBudget, CreatedAt
     public function isVisible(): bool
     {
         return $this->visible;
+    }
+
+    public function getDirector(): ?User
+    {
+        return $this->director;
+    }
+
+    public function setDirector(?User $director): void
+    {
+        $this->director = $director;
     }
 
     public function setBillable(bool $billable): void

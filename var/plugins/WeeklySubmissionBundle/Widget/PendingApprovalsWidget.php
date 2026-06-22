@@ -38,7 +38,10 @@ final class PendingApprovalsWidget extends AbstractWidget
             return 0;
         }
 
-        return $this->repository->countPendingForSupervisor($user);
+        $pending = $this->repository->countPendingForSupervisor($user);
+        $pendingFinal = $this->repository->countSupervisorApprovedForUser($user);
+
+        return $pending + $pendingFinal;
     }
 
     public function getPermissions(): array

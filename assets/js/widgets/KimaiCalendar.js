@@ -609,6 +609,10 @@ export default class KimaiCalendar {
             color = defaultColor;
         }
 
+        if (apiItem.activity.name === 'Public Holiday') {
+            color = '#dc3545';
+        }
+
         /** @type {KimaiDateUtils} DATES */
         const DATES = this.kimai.getPlugin('date');
 

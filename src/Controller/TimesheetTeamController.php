@@ -161,7 +161,7 @@ final class TimesheetTeamController extends TimesheetAbstractController
             'allow_duration' => $mode->canEditDuration(),
             'duration_minutes' => $this->configuration->getTimesheetIncrementDuration(),
             'timezone' => $this->getDateTimeFactory()->getTimezone()->getName(),
-            'department' => true,
+            'department' => false,
         ]);
     }
 

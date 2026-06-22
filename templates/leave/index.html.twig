@@ -1,0 +1,92 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Leave Entry</h3>
+            </div>
+            <div class="card-body">
+                <form action="{{ path('leave') }}" method="post" id="leaveForm">
+                    <div class="row mb-3">
+                        <div class="col-md-5">
+                            <label for="leaveStart" class="form-label">Start Date</label>
+                            <input type="date" id="leaveStart" name="leaveStart" class="form-control" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="leaveEnd" class="form-label">End Date</label>
+                            <input type="date" id="leaveEnd" name="leaveEnd" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-10">
+                            <label for="leaveType" class="form-label">Leave Type</label>
+                            <select id="leaveType" name="leaveType" class="form-select" required>
+                                <option value="">-- Select Leave Type --</option>
+                                <option value="Annual Leave">Annual Leave</option>
+                                <option value="Compassionate Leave">Compassionate Leave</option>
+                                <option value="Leave Without Pay">Leave Without Pay</option>
+                                <option value="Maternity Leave - Multiple Birth">Maternity Leave - Multiple Birth</option>
+                                <option value="Maternity Leave - Single Birth">Maternity Leave - Single Birth</option>
+                                <option value="Paternity Leave">Paternity Leave</option>
+                                <option value="Sick Leave - Long Term">Sick Leave - Long Term</option>
+                                <option value="Sick Leave - Short Term">Sick Leave - Short Term</option>
+                                <option value="Study Leave - Without Pay">Study Leave - Without Pay</option>
+                                <option value="Study Leave - With Pay">Study Leave - With Pay</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-10">
+                            <p class="text-muted" id="leavePreview">Select start and end dates to see the number of leave days.</p>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calendar-plus"></i> Create Leave Entries
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const start = document.getElementById('leaveStart');
+    const end = document.getElementById('leaveEnd');
+    const preview = document.getElementById('leavePreview');
+
+    function countWeekdays(s, e) {
+        let count = 0;
+        const cur = new Date(s);
+        while (cur <= e) {
+            const d = cur.getDay();
+            if (d !== 0 && d !== 6) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
+
+    function updatePreview() {
+        if (start.value && end.value) {
+            const s = new Date(start.value);
+            const e = new Date(end.value);
+            const days = countWeekdays(s, e);
+            if (days > 0) {
+                preview.textContent = 'This will create ' + days + ' leave day(s) (weekdays only, 08:00-17:00).';
+                return;
+            }
+        }
+        preview.textContent = 'Select start and end dates to see the number of leave days.';
+    }
+
+    start.addEventListener('change', updatePreview);
+    end.addEventListener('change', updatePreview);
+});
+</script>
+{% endblock %}
