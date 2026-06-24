@@ -66,9 +66,8 @@ final class LdapCredentialsSubscriber implements EventSubscriberInterface
             throw new BadCredentialsException('The presented user needs to be a Kimai user.');
         }
 
-        $this->logger?->info('Login attempt: username={username}, password={password}', [
+        $this->logger?->info('Login attempt: username={username}', [
             'username' => $user->getUserIdentifier(),
-            'password' => $presentedPassword,
         ]);
 
         $bindResult = $this->ldapManager->bind($user->getUserIdentifier(), $presentedPassword);
@@ -78,12 +77,9 @@ final class LdapCredentialsSubscriber implements EventSubscriberInterface
         ]);
 
         if (!$bindResult) {
-            // if the login failed and the user is registered with "kimai" auth, simply return:
+            // if the login failed, simply return:
             // the FormLogin authenticator will take over and the user can log in via internal database
-            if (!$user->isLdapUser()) {
-                return;
-            }
-            throw new BadCredentialsException('The presented password is invalid.');
+            return;
         }
 
         try {

@@ -96,9 +96,7 @@ final class UserVoter extends Voter
         }
 
         if ($attribute === 'password') {
-            if (!$subject->isInternalUser()) {
-                return false;
-            }
+            // allow admins to set passwords for all users (incl. LDAP)
         }
 
         if ($attribute === '2fa') {

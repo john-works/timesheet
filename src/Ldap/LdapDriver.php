@@ -20,6 +20,7 @@ use Psr\Log\LoggerInterface;
 class LdapDriver
 {
     private ?Ldap $driver = null;
+    private ?string $lastError = null;
 
     public function __construct(
         private readonly LdapConfiguration $config,
@@ -76,6 +77,11 @@ class LdapDriver
         return $entries;
     }
 
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
+
     public function bind(string $bindDn, string $password): bool
     {
         $driver = $this->getDriver();
@@ -87,11 +93,53 @@ class LdapDriver
             ]);
             $bind = $driver->bind($bindDn, $password);
 
+            $this->lastError = null;
+
             return $bind instanceof Ldap;
         } catch (LdapException $exception) {
-            $this->logger->error(\sprintf('Failed binding to LDAP at %s: %s', $bindDn, $exception->getMessage()), ['exception' => new SanitizingException($exception, $password)]);
+            $this->lastError = self::parseAdError($exception->getMessage());
+            $this->logger->error(\sprintf('Failed binding to LDAP at %s: %s [%s]', $bindDn, $this->lastError, $exception->getMessage()), ['exception' => new SanitizingException($exception, $password)]);
         }
 
         return false;
+    }
+
+    /**
+     * Parse AD-specific error codes from LDAP exception messages for better diagnostics.
+     */
+    private static function parseAdError(string $message): string
+    {
+        $adErrors = [
+            'data 525' => 'User not found in Active Directory',
+            'data 52e' => 'Invalid credentials (wrong password)',
+            'data 530' => 'Not permitted to log on at this time',
+            'data 531' => 'Not permitted to log on at this workstation',
+            'data 532' => 'Password expired',
+            'data 533' => 'Account disabled',
+            'data 568' => 'Account locked out (too many failed attempts)',
+            'data 701' => 'Account expired',
+            'data 773' => 'User must change password at next logon',
+            'data 775' => 'Account locked out',
+        ];
+
+        foreach ($adErrors as $code => $label) {
+            if (str_contains($message, $code)) {
+                return $label;
+            }
+        }
+
+        if (str_contains($message, '0x20') || str_contains($message, 'No such object')) {
+            return 'User not found in Active Directory';
+        }
+
+        if (str_contains($message, '0x31') || str_contains($message, 'Invalid credentials')) {
+            return 'Invalid credentials (wrong password)';
+        }
+
+        if (str_contains($message, '0x51') || str_contains($message, 'Server down')) {
+            return 'Active Directory server unreachable';
+        }
+
+        return 'Unknown LDAP error';
     }
 }

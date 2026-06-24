@@ -77,6 +77,11 @@ class LdapManager
         return $this->driver->bind($dn, $password);
     }
 
+    public function getLastBindError(): ?string
+    {
+        return $this->driver->getLastError();
+    }
+
     /**
      * This method does all the heavy lifting:
      * - searching for latest 'dn'
