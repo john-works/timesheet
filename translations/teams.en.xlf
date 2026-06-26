@@ -24,7 +24,7 @@
       </trans-unit>
       <trans-unit id="FC4DW27" resname="team.activity_visibility_inherited">
         <source>team.activity_visibility_inherited</source>
-        <target>The activity has limited access, because team permissions are set for the project and/or department.</target>
+        <target>The activity type has limited access, because team permissions are set for the project and/or department.</target>
       </trans-unit>
       <trans-unit id="cZEIdcu" resname="team.create_default">
         <source>team.create_default</source>

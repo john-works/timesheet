@@ -48,7 +48,7 @@
       </trans-unit>
       <trans-unit id="8RaUHlW" resname="report_department_monthly_projects">
         <source>report_department_monthly_projects</source>
-        <target>Projects by month, activity and user</target>
+        <target>Projects by month, activity type and user</target>
       </trans-unit>
     </body>
   </file>

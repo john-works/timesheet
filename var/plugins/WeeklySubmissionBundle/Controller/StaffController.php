@@ -119,7 +119,6 @@ final class StaffController extends AbstractController
 
         $holidays = $this->holidayRepository->findBetween($weekStart, $weekStart->modify('+4 days'));
 
-        // Auto-create timesheet entries for public holidays that fall on weekdays
         // Remove any leave entries that fall on public holidays and replace with holiday entry
         foreach ($holidays as $holiday) {
             $date = $holiday->getHolidayDate();
@@ -200,7 +199,7 @@ final class StaffController extends AbstractController
         $entry->setUser($user);
         $entry->setBegin($begin);
         $entry->setEnd($end);
-        $entry->setDuration($end->getTimestamp() - $begin->getTimestamp());
+        $entry->setDuration(28800);
         $entry->setProject($project);
         $entry->setActivity($activity);
         $entry->setDescription('Public Holiday: ' . $holidayName);

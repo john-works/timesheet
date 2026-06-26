@@ -28,6 +28,7 @@ use App\Form\Type\TimesheetBillableType;
 use App\Form\Type\UserType;
 use App\Form\Type\YesNoType;
 use App\Entity\Project;
+use App\Repository\ActivityRepository;
 use App\Repository\DepartmentRepository;
 use App\Repository\Query\DepartmentFormTypeQuery;
 use App\Repository\ProjectRepository;
@@ -51,7 +52,8 @@ class TimesheetEditForm extends AbstractType
     public function __construct(
         private readonly DepartmentRepository $departments,
         private readonly SystemConfiguration $systemConfiguration,
-        private readonly ProjectRepository $projectRepository
+        private readonly ProjectRepository $projectRepository,
+        private readonly ActivityRepository $activityRepository
     )
     {
     }
@@ -146,6 +148,14 @@ class TimesheetEditForm extends AbstractType
             $project = $this->projectRepository->findOneBy(['visible' => true], ['id' => 'ASC']);
         }
         $this->addProject($builder, $isNew, $project, $department, ['label' => 'Organisation', 'placeholder' => 'PPDA']);
+
+        // pre-select Normal Work as default for new entries
+        if ($activity === null && $isNew) {
+            $activity = $this->activityRepository->findOneBy(['name' => 'Normal Work', 'visible' => true]);
+            if ($activity !== null) {
+                $entry->setActivity($activity);
+            }
+        }
 
         // visible activity dropdown
         $this->addActivity($builder, $activity, $project, [

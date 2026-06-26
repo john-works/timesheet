@@ -79,13 +79,23 @@ final class LeaveController extends AbstractController
                 continue;
             }
 
+            $isWithoutPay = stripos($leaveType, 'Without Pay') !== false;
+
             $entry = new Timesheet();
             $entry->setUser($user);
             $entry->setActivity($leaveActivity);
             $entry->setProject($project);
-            $entry->setBegin((clone $date)->setTime(0, 0));
-            $entry->setEnd((clone $date)->setTime(0, 0));
             $entry->setDescription($leaveType);
+
+            if ($isWithoutPay) {
+                $entry->setBegin((clone $date)->setTime(0, 0));
+                $entry->setEnd((clone $date)->setTime(0, 0));
+                $entry->setDuration(0);
+            } else {
+                $entry->setBegin((clone $date)->setTime(8, 0));
+                $entry->setEnd((clone $date)->setTime(17, 0));
+                $entry->setDuration(28800);
+            }
 
             try {
                 $this->timesheetService->saveTimesheet($entry);

@@ -74,9 +74,9 @@
         <source>Maximum duration of {{ value }} hours exceeded.</source>
         <target>Maximum {{ value }} hours allowed.</target>
       </trans-unit>
-      <trans-unit id="to1Q85W" resname="An activity needs to be selected.">
-        <source>An activity needs to be selected.</source>
-        <target>An activity needs to be selected.</target>
+      <trans-unit id="to1Q85W" resname="An activity type needs to be selected.">
+        <source>An activity type needs to be selected.</source>
+        <target>An activity type needs to be selected.</target>
       </trans-unit>
       <trans-unit id="rHd9_aA" resname="A project needs to be selected.">
         <source>A project needs to be selected.</source>

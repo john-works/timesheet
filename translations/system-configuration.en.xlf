@@ -216,7 +216,7 @@
       </trans-unit>
       <trans-unit id="ifgrIHh" resname="activity.number_format">
         <source>activity.number_format</source>
-        <target>Activity number format</target>
+        <target>Activity type number format</target>
       </trans-unit>
       <trans-unit id="jj1NmKW" resname="allow_duplicate_number">
         <source>allow_duplicate_number</source>
@@ -304,7 +304,7 @@
       </trans-unit>
       <trans-unit id="12sQGSo" resname="activity.allow_inline_create">
         <source>activity.allow_inline_create</source>
-        <target>Allow creation of activities in time-tracking form</target>
+        <target>Allow creation of activity types in time-tracking form</target>
       </trans-unit>
       <trans-unit id="pBxkAF_" resname="copy_teams_on_create" approved="yes">
         <source>copy_teams_on_create</source>

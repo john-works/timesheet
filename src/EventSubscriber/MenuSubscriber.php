@@ -63,12 +63,6 @@ final class MenuSubscriber implements EventSubscriberInterface
             $timesheets->setChildRoutes(['timesheet_export', 'timesheet_edit', 'timesheet_create', 'timesheet_multi_update']);
             $times->addChild($timesheets);
 
-            if ($auth->isGranted('quick-entry')) {
-                $times->addChild(
-                    new MenuItemModel('quick_entry', 'quick_entry.title', 'quick_entry', [], 'weekly-times')
-                );
-            }
-
             $times->addChild(
                 new MenuItemModel('calendar', 'calendar', 'calendar', [], 'calendar')
             );

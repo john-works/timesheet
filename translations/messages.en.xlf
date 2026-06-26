@@ -216,7 +216,7 @@
       </trans-unit>
       <trans-unit id="YkyVVAY" resname="activities">
         <source>activities</source>
-        <target>Activities</target>
+        <target>Activity Types</target>
       </trans-unit>
       <trans-unit id="fftM9nd" resname="users">
         <source>users</source>
@@ -224,7 +224,7 @@
       </trans-unit>
       <trans-unit id="_t.2z4V" resname="teams">
         <source>teams</source>
-        <target>Teams</target>
+        <target>PPDA Units</target>
       </trans-unit>
       <trans-unit id="3rJ5QDP" resname="help.teams">
         <source>help.teams</source>
@@ -360,7 +360,7 @@
       </trans-unit>
       <trans-unit id="BlGGO.X" resname="activity">
         <source>activity</source>
-        <target>Activity</target>
+        <target>Activity Type</target>
       </trans-unit>
       <trans-unit id="JEIQ5IQ" resname="project">
         <source>Project</source>
@@ -420,11 +420,11 @@
       </trans-unit>
       <trans-unit id="yosi0Nu" resname="team">
         <source>team</source>
-        <target>Team</target>
+        <target>PPDA Unit</target>
       </trans-unit>
       <trans-unit id="evFI7nW" resname="teamlead">
         <source>teamlead</source>
-        <target>Teamlead</target>
+        <target>Manager</target>
       </trans-unit>
       <trans-unit id="LIOnolg" resname="placeholder.type_message">
         <source>placeholder.type_message</source>
@@ -760,7 +760,7 @@
       </trans-unit>
       <trans-unit id="8JEDuyx" resname="activity_number">
         <source>Activity number</source>
-        <target>Activity number</target>
+        <target>Activity type number</target>
       </trans-unit>
       <trans-unit id="EohvnQA" resname="number">
         <source>number</source>
@@ -876,7 +876,7 @@
       </trans-unit>
       <trans-unit id="yttGLAB" resname="ROLE_TEAMLEAD">
         <source>ROLE_TEAMLEAD</source>
-        <target>Teamlead</target>
+        <target>Manager</target>
       </trans-unit>
       <trans-unit id="rvO5ZXf" resname="ROLE_USER">
         <source>ROLE_USER</source>
@@ -1040,7 +1040,7 @@
       </trans-unit>
       <trans-unit id="Bor.76M" resname="stats.activityTotal">
         <source>stats.activityTotal</source>
-        <target>Activities</target>
+        <target>Activity Types</target>
       </trans-unit>
       <trans-unit id="67uSaR3" resname="stats.projectTotal">
         <source>stats.projectTotal</source>
@@ -1248,7 +1248,7 @@
       </trans-unit>
       <trans-unit id="task_label" resname="task">
         <source>task</source>
-        <target>What are you doing?</target>
+        <target>Activity Details</target>
       </trans-unit>
       <trans-unit id="Zngu6M9" resname="status.planned">
         <source>status.planned</source>
@@ -1336,7 +1336,7 @@
       </trans-unit>
       <trans-unit id="WVU_S.A" resname="recent.activities">
         <source>recent.activities</source>
-        <target>Restart one of your last activities</target>
+        <target>Restart one of your last activity types</target>
       </trans-unit>
       <trans-unit id="dTHY7Mw" resname="timesheet.start">
         <source>timesheet.start</source>
@@ -1392,15 +1392,15 @@
       </trans-unit>
       <trans-unit id="HNFpvnH" resname="globalActivities">
         <source>globalActivities</source>
-        <target>Allow global activities</target>
+        <target>Allow global activity types</target>
       </trans-unit>
       <trans-unit id="Fkrev.q" resname="help.globalActivities">
         <source>help.globalActivities</source>
-        <target>If the setting is off, times can only be recorded with project-specific activities.</target>
+        <target>If the setting is off, times can only be recorded with project-specific activity types.</target>
       </trans-unit>
       <trans-unit id="FxwWVFI" resname="help.globalActivity">
         <source>help.globalActivity</source>
-        <target>If you do not select a project, this activity becomes global, and it can be combined with any project. If you select a project, the activity can only be used with that project. The setting cannot be changed later.</target>
+        <target>If you do not select a project, this activity type becomes global, and it can be combined with any project. If you select a project, the activity type can only be used with that project. The setting cannot be changed later.</target>
       </trans-unit>
       <trans-unit id="8BPmHPa" resname="batch_meta_fields">
         <source>batch_meta_fields</source>
@@ -1544,7 +1544,7 @@
       </trans-unit>
       <trans-unit id="ZZaqTEr" resname="no_activity">
         <source>no_activity</source>
-        <target>Without activity</target>
+        <target>Without activity type</target>
       </trans-unit>
       <trans-unit id="Uu8YvYV" resname="deactivated">
         <source>Deactivated</source>
@@ -1872,7 +1872,7 @@
       </trans-unit>
       <trans-unit id="UbouFOs" resname="create-activity">
         <source>create-activity</source>
-        <target>Create activity</target>
+        <target>Create activity type</target>
       </trans-unit>
       <trans-unit id="QR1nvcR" resname="create-timesheet">
         <source>create-timesheet</source>

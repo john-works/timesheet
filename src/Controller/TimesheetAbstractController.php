@@ -88,6 +88,9 @@ abstract class TimesheetAbstractController extends AbstractController
         }
 
         $table->addColumn('duration', ['class' => 'text-end text-nowrap']);
+        $table->addColumn('task', ['class' => 'd-none d-md-table-cell', 'title' => 'task']);
+        $table->addColumn('status', ['class' => 'd-none d-md-table-cell']);
+        $table->addColumn('activity', ['class' => 'd-none d-xl-table-cell']);
 
         if ($canSeeRate) {
             $table->addColumn('hourlyRate', ['class' => 'text-end d-none text-nowrap']);
@@ -95,9 +98,6 @@ abstract class TimesheetAbstractController extends AbstractController
             $table->addColumn('rate', ['class' => 'text-end text-nowrap d-none']);
         }
 
-        $table->addColumn('status', ['class' => 'd-none d-md-table-cell']);
-        $table->addColumn('task', ['class' => 'd-none d-md-table-cell', 'title' => 'task']);
-        $table->addColumn('activity', ['class' => 'd-none d-xl-table-cell']);
         $table->addColumn('description', ['class' => 'd-none']);
         $table->addColumn('tags', ['class' => 'd-none', 'orderBy' => false]);
 

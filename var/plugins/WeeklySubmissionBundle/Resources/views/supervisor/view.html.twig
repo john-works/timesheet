@@ -41,6 +41,13 @@
                     </div>
                 </div>
 
+                {% if submission.managerNotes %}
+                <div class="alert alert-warning">
+                    <strong>Manager rejected — reason:</strong><br>
+                    {{ submission.managerNotes|nl2br }}
+                </div>
+                {% endif %}
+
                 {% if timesheets|length == 0 %}
                     <div class="alert alert-info">No timesheet entries found for this period.</div>
                 {% else %}

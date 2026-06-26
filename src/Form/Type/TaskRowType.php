@@ -14,7 +14,7 @@ final class TaskRowType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('task', TextType::class, [
-            'label' => 'What are you doing?',
+            'label' => 'Activity Details',
             'required' => false,
             'attr' => [
                 'placeholder' => 'e.g. Working on report, attending meeting, ...',

@@ -21,6 +21,7 @@
                                 <th>Week</th>
                                 <th>Total Hours</th>
                                 <th>Submitted</th>
+                                <th>Current User</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -33,10 +34,16 @@
                                     {% set hours = (submission.totalDuration / 3600)|number_format(2) %}{{ hours }}h
                                 </td>
                                 <td>{{ submission.submittedAt ? submission.submittedAt|date('d/m/Y H:i') : '-' }}</td>
+                                <td>{{ submission.user.supervisor ? submission.user.supervisor.displayName : '-' }}</td>
                                 <td class="actions-cell">
                                     <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="btn btn-info btn-sm remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
                                         <i class="fas fa-eye"></i> View
                                     </a>
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#reassignModal" data-submission-id="{{ submission.id }}" data-staff-name="{{ submission.user.displayName }}">
+                                        <i class="fas fa-exchange-alt"></i> Reassign
+                                    </button>
+                                    {% endif %}
                                     {% if submission.id in actableIds %}
                                     <button type="button" class="btn btn-success btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#approveModal{{ submission.id }}">
                                         <i class="fas fa-check"></i> Approve
@@ -235,4 +242,49 @@
 <style>
 .actions-cell { white-space: nowrap; }
 </style>
+
+<!-- Reassign Modal (shared) -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="reassignForm" method="post">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title">Reassign Submission</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Staff:</strong> <span id="reassignStaffName"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_supervisor_id" class="form-label">New Supervisor <span class="text-danger">*</span></label>
+                        <select id="new_supervisor_id" name="new_supervisor_id" class="form-control" required>
+                            <option value="">-- Select Supervisor --</option>
+                            {% for u in allUsers %}
+                                <option value="{{ u.id }}">{{ u.displayName }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Confirm Reassign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('reassignModal');
+    modal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var submissionId = button.getAttribute('data-submission-id');
+        var staffName = button.getAttribute('data-staff-name');
+        document.getElementById('reassignStaffName').textContent = staffName;
+        document.getElementById('reassignForm').action = '{{ path("weekly_submission_supervisor_reassign", {id: 0}) }}'.replace('0', submissionId);
+    });
+});
+</script>
 {% endblock %}

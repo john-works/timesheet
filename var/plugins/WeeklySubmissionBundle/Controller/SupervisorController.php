@@ -5,6 +5,7 @@ namespace KimaiPlugin\WeeklySubmissionBundle\Controller;
 use App\Entity\Timesheet;
 use App\Entity\User;
 use App\Repository\TimesheetRepository;
+use App\Repository\UserRepository;
 use App\Repository\Query\TimesheetQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission;
@@ -24,7 +25,8 @@ final class SupervisorController extends AbstractController
         private readonly WeeklySubmissionRepository $repository,
         private readonly WeeklySubmissionMailer $mailer,
         private readonly EntityManagerInterface $entityManager,
-        private readonly TimesheetRepository $timesheetRepository
+        private readonly TimesheetRepository $timesheetRepository,
+        private readonly UserRepository $userRepository
     )
     {
     }
@@ -48,11 +50,14 @@ final class SupervisorController extends AbstractController
             }
         }
 
+        $allUsers = $this->userRepository->findBy(['enabled' => true], ['username' => 'ASC']);
+
         return $this->render('@WeeklySubmission/supervisor/pending.html.twig', [
             'submissions' => $submissions,
             'actableIds' => $actableIds,
             'managerSubmissions' => $managerSubmissions,
             'managerActableIds' => $managerActableIds,
+            'allUsers' => $allUsers,
         ]);
     }
 
@@ -290,26 +295,86 @@ final class SupervisorController extends AbstractController
             $submission->setApprovedBy($user);
             $submission->setApprovedAt(new \DateTimeImmutable());
             $submission->setSupervisorNotes($notes);
+
+            $this->entityManager->persist($submission);
+            $this->entityManager->flush();
+
+            try {
+                $this->mailer->sendRejectedNotification($submission);
+            } catch (\Exception $e) {
+            }
+
+            $this->addFlash('warning', sprintf(
+                'Weekly submission for %s (%s) has been rejected. The employee can revise and resubmit.',
+                $submission->getUser()->getDisplayName(),
+                $submission->getWeekStart()->format('d/m/Y')
+            ));
         } else {
-            $submission->setStatus(WeeklySubmission::STATUS_REJECTED);
+            // Manager rejects — send back to supervisor instead of the employee
+            $submission->setStatus(WeeklySubmission::STATUS_SUBMITTED);
             $submission->setManagerApprovedBy($user);
             $submission->setManagerApprovedAt(new \DateTimeImmutable());
             $submission->setManagerNotes($notes);
+
+            $this->entityManager->persist($submission);
+            $this->entityManager->flush();
+
+            $supervisor = $submission->getApprovedBy();
+            if ($supervisor !== null) {
+                try {
+                    $this->mailer->sendManagerRejectedNotification($submission, $supervisor);
+                } catch (\Exception $e) {
+                }
+            }
+
+            $this->addFlash('warning', sprintf(
+                'Weekly submission for %s (%s) has been rejected and sent back to the supervisor.',
+                $submission->getUser()->getDisplayName(),
+                $submission->getWeekStart()->format('d/m/Y')
+            ));
+        }
+        return $this->redirectToRoute('weekly_submission_supervisor_pending');
+    }
+
+    #[Route('/supervisor/{id}/reassign', name: 'weekly_submission_supervisor_reassign', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function reassign(int $id, #[CurrentUser] User $user, Request $request): Response
+    {
+        $submission = $this->repository->find($id);
+
+        if ($submission === null) {
+            $this->addFlash('error', 'Submission not found.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
         }
 
-        $this->entityManager->persist($submission);
+        if (!$submission->isSubmitted()) {
+            $this->addFlash('error', 'Only submitted submissions can be reassigned.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
+
+        $newSupervisorId = $request->request->get('new_supervisor_id');
+        $newSupervisor = $this->userRepository->find($newSupervisorId);
+
+        if ($newSupervisor === null || !$newSupervisor->isEnabled()) {
+            $this->addFlash('error', 'Invalid supervisor selected.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
+
+        $staffUser = $submission->getUser();
+        $oldSupervisor = $staffUser->getSupervisor();
+        $staffUser->setSupervisor($newSupervisor);
+
+        $this->entityManager->persist($staffUser);
         $this->entityManager->flush();
 
-        try {
-            $this->mailer->sendRejectedNotification($submission);
-        } catch (\Exception $e) {
-        }
-
-        $this->addFlash('warning', sprintf(
-            'Weekly submission for %s (%s) has been rejected. The employee can revise and resubmit.',
-            $submission->getUser()->getDisplayName(),
-            $submission->getWeekStart()->format('d/m/Y')
+        $this->addFlash('success', sprintf(
+            'Submission for %s (%s) reassigned from %s to %s.',
+            $staffUser->getDisplayName(),
+            $submission->getWeekStart()->format('d/m/Y'),
+            $oldSupervisor?->getDisplayName() ?? 'none',
+            $newSupervisor->getDisplayName()
         ));
+
         return $this->redirectToRoute('weekly_submission_supervisor_pending');
     }
 

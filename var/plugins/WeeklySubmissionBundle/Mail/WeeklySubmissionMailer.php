@@ -109,4 +109,22 @@ class WeeklySubmissionMailer
 
         $this->mailer->sendToUser($submission->getUser(), $email);
     }
+
+    public function sendManagerRejectedNotification(WeeklySubmission $submission, User $supervisor): void
+    {
+        $start = $submission->getWeekStart()->format('Y-m-d');
+        $end = $submission->getWeekEnd()->format('Y-m-d');
+
+        $html = $this->twig->render('@WeeklySubmission/emails/rejected.html.twig', [
+            'submission' => $submission,
+            'weekStart' => $start,
+            'weekEnd' => $end,
+        ]);
+
+        $email = (new Email())
+            ->subject(sprintf('[Timesheet] Manager requires changes to %s\'s weekly submission (%s - %s)', $submission->getUser()->getDisplayName(), $start, $end))
+            ->html($html);
+
+        $this->mailer->sendToUser($supervisor, $email);
+    }
 }

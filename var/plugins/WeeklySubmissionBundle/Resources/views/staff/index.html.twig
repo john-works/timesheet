@@ -76,6 +76,18 @@
                         <br><span class="badge bg-info">{{ leaveDays|length }} day(s) on leave</span>
                     {% endif %}
                 </div>
+                <div class="mb-3">
+                    <strong>Current User:</strong>
+                    {% if submission.isDraft or submission.isRejected %}
+                        {{ app.user.displayName }}
+                    {% elseif submission.isApproved %}
+                        {{ submission.managerApprovedBy ? submission.managerApprovedBy.displayName : submission.approvedBy.displayName }}
+                    {% elseif submission.isSupervisorApproved %}
+                        {{ supervisor.supervisor ? supervisor.supervisor.displayName : '-' }}
+                    {% elseif submission.isSubmitted %}
+                        {{ supervisor ? supervisor.displayName : '-' }}
+                    {% endif %}
+                </div>
 
                 {% if supervisor is null %}
                     <div class="alert alert-warning">
@@ -170,7 +182,7 @@
                             <th>Week</th>
                             <th>Status</th>
                             <th>Submitted</th>
-                            <th>Approved By</th>
+                            <th>Current User</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -192,7 +204,7 @@
                                 {% endif %}
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
-                            <td>{{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.approvedBy ? entry.approvedBy.displayName : '-') }}</td>
+                            <td>{% if entry.isDraft or entry.isRejected %}{{ app.user.displayName }}{% elseif entry.isApproved %}{{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : entry.approvedBy.displayName }}{% elseif entry.isSupervisorApproved %}{{ entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-' }}{% elseif entry.isSubmitted %}{{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}{% endif %}</td>
                             <td>{{ entry.managerNotes ?: (entry.supervisorNotes ?: '-') }}</td>
                         </tr>
                         {% endfor %}
