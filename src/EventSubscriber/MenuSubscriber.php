@@ -58,6 +58,12 @@ final class MenuSubscriber implements EventSubscriberInterface
         // ------------------- timesheet menu -------------------
         $times = new MenuItemModel('times', 'time_tracking', null, [], 'timesheet');
 
+        if ($auth->isGranted('ROLE_ADMIN')) {
+            $times->addChild(
+                new MenuItemModel('weekly_submissions', 'Weekly Submissions', 'weekly_submission_admin_index', [], 'timesheet')
+            );
+        }
+
         if ($auth->isGranted('view_own_timesheet')) {
             $timesheets = new MenuItemModel('timesheet', 'my_times', 'timesheet', [], 'timesheet');
             $timesheets->setChildRoutes(['timesheet_export', 'timesheet_edit', 'timesheet_create', 'timesheet_multi_update']);

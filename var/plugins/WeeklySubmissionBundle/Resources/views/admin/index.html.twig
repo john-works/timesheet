@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">All Submitted Submissions</h3>
+                <div class="card-tools">
+                    <span class="badge bg-warning">{{ submissions|length }} pending</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if submissions|length == 0 %}
+                    <div class="p-3">
+                        <div class="alert alert-info mb-0">No submissions pending.</div>
+                    </div>
+                {% else %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Staff</th>
+                                <th>Week</th>
+                                <th>Total Hours</th>
+                                <th>Submitted</th>
+                                <th>Current User</th>
+                                <th>Reassign To</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in submissions %}
+                            <tr>
+                                <td>{{ s.user.displayName }}</td>
+                                <td>{{ s.weekStart|date('d/m/Y') }} - {{ s.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
+                                <td>{% set hrs = (s.totalDuration / 3600)|number_format(2) %}{{ hrs }}h</td>
+                                <td>{{ s.submittedAt ? s.submittedAt|date('d/m/Y H:i') : '-' }}</td>
+                                <td>{{ s.user.supervisor ? s.user.supervisor.displayName : '-' }}</td>
+                                <td>
+                                    <form action="{{ path('weekly_submission_admin_reassign', {id: s.id}) }}" method="post" class="d-flex gap-1">
+                                        <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:150px" required>
+                                            <option value="">-- Select --</option>
+                                            {% for u in allUsers %}
+                                                <option value="{{ u.id }}" {% if s.user.supervisor and s.user.supervisor.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-exchange-alt"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

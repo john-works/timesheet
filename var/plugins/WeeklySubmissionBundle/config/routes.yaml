@@ -8,6 +8,11 @@ weekly_submission_supervisor:
     type: attribute
     prefix: /{_locale}/weekly-submission
 
+weekly_submission_admin:
+    resource: ../Controller/AdminController.php
+    type: attribute
+    prefix: /{_locale}/weekly-submission
+
 public_holiday_calendar:
     resource: ../Controller/PublicHolidayController.php
     type: attribute

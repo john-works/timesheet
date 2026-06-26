@@ -329,6 +329,20 @@ class WeeklySubmissionRepository extends EntityRepository
         );
     }
 
+    /**
+     * @return WeeklySubmission[]
+     */
+    public function findAllSubmitted(): array
+    {
+        $qb = $this->createQueryBuilder('s');
+        $qb->select('s')
+            ->where('s.status = :status')
+            ->setParameter('status', WeeklySubmission::STATUS_SUBMITTED)
+            ->orderBy('s.weekStart', 'DESC');
+
+        return $qb->getQuery()->getResult();
+    }
+
     public function countPendingForSupervisor(User $supervisor): int
     {
         $userIds = $this->getViewableUserIds($supervisor);

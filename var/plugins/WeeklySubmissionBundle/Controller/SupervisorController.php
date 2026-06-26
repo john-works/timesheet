@@ -5,7 +5,6 @@ namespace KimaiPlugin\WeeklySubmissionBundle\Controller;
 use App\Entity\Timesheet;
 use App\Entity\User;
 use App\Repository\TimesheetRepository;
-use App\Repository\UserRepository;
 use App\Repository\Query\TimesheetQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission;
@@ -25,8 +24,7 @@ final class SupervisorController extends AbstractController
         private readonly WeeklySubmissionRepository $repository,
         private readonly WeeklySubmissionMailer $mailer,
         private readonly EntityManagerInterface $entityManager,
-        private readonly TimesheetRepository $timesheetRepository,
-        private readonly UserRepository $userRepository
+        private readonly TimesheetRepository $timesheetRepository
     )
     {
     }
@@ -50,14 +48,11 @@ final class SupervisorController extends AbstractController
             }
         }
 
-        $allUsers = $this->userRepository->findBy(['enabled' => true], ['username' => 'ASC']);
-
         return $this->render('@WeeklySubmission/supervisor/pending.html.twig', [
             'submissions' => $submissions,
             'actableIds' => $actableIds,
             'managerSubmissions' => $managerSubmissions,
             'managerActableIds' => $managerActableIds,
-            'allUsers' => $allUsers,
         ]);
     }
 
