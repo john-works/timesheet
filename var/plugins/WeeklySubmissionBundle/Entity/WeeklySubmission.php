@@ -60,6 +60,16 @@ class WeeklySubmission
     #[ORM\Column(name: 'total_duration', type: Types::INTEGER, nullable: false, options: ['default' => 0])]
     private int $totalDuration = 0;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'reassigned_to', nullable: true, onDelete: 'SET NULL')]
+    private ?User $reassignedTo = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'original_supervisor', nullable: true, onDelete: 'SET NULL')]
+    private ?User $originalSupervisor = null;
+
+    private ?User $currentApprover = null;
+
     public function __construct(User $user, \DateTimeImmutable $weekStart)
     {
         $this->user = $user;
@@ -199,5 +209,35 @@ class WeeklySubmission
     public function setTotalDuration(int $totalDuration): void
     {
         $this->totalDuration = $totalDuration;
+    }
+
+    public function getReassignedTo(): ?User
+    {
+        return $this->reassignedTo;
+    }
+
+    public function setReassignedTo(?User $reassignedTo): void
+    {
+        $this->reassignedTo = $reassignedTo;
+    }
+
+    public function getOriginalSupervisor(): ?User
+    {
+        return $this->originalSupervisor;
+    }
+
+    public function setOriginalSupervisor(?User $originalSupervisor): void
+    {
+        $this->originalSupervisor = $originalSupervisor;
+    }
+
+    public function getCurrentApprover(): ?User
+    {
+        return $this->currentApprover;
+    }
+
+    public function setCurrentApprover(?User $currentApprover): void
+    {
+        $this->currentApprover = $currentApprover;
     }
 }

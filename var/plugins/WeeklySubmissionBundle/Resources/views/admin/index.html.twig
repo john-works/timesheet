@@ -35,13 +35,13 @@
                                 <td>{{ s.weekStart|date('d/m/Y') }} - {{ s.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                                 <td>{% set hrs = (s.totalDuration / 3600)|number_format(2) %}{{ hrs }}h</td>
                                 <td>{{ s.submittedAt ? s.submittedAt|date('d/m/Y H:i') : '-' }}</td>
-                                <td>{{ s.user.supervisor ? s.user.supervisor.displayName : '-' }}</td>
+                                <td>{{ s.reassignedTo ? s.reassignedTo.displayName : (s.user.supervisor ? s.user.supervisor.displayName : '-') }}</td>
                                 <td>
                                     <form action="{{ path('weekly_submission_admin_reassign', {id: s.id}) }}" method="post" class="d-flex gap-1">
                                         <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:150px" required>
                                             <option value="">-- Select --</option>
                                             {% for u in allUsers %}
-                                                <option value="{{ u.id }}" {% if s.user.supervisor and s.user.supervisor.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                                <option value="{{ u.id }}" {% if s.reassignedTo and s.reassignedTo.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
                                             {% endfor %}
                                         </select>
                                         <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-exchange-alt"></i></button>

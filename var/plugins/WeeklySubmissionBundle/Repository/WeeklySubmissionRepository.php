@@ -218,17 +218,24 @@ class WeeklySubmissionRepository extends EntityRepository
 
         $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $supervisor->getId()));
 
-        if (empty($userIds)) {
-            return [];
-        }
-
         $qb = $this->createQueryBuilder('s');
         $qb->select('s')
             ->where('s.status = :status')
             ->setParameter('status', WeeklySubmission::STATUS_SUBMITTED)
-            ->andWhere('s.user IN (:userIds)')
-            ->setParameter('userIds', $userIds)
             ->orderBy('s.weekStart', 'DESC');
+
+        if (!empty($userIds)) {
+            $qb->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->in('s.user', ':userIds'),
+                    $qb->expr()->eq('s.reassignedTo', ':reassignedTo')
+                )
+            );
+            $qb->setParameter('userIds', $userIds);
+        } else {
+            $qb->andWhere('s.reassignedTo = :reassignedTo');
+        }
+        $qb->setParameter('reassignedTo', $supervisor);
 
         return $qb->getQuery()->getResult();
     }
@@ -240,17 +247,23 @@ class WeeklySubmissionRepository extends EntityRepository
     {
         $userIds = $this->getSupervisorApprovedUserIds($user);
 
-        if (empty($userIds)) {
-            return [];
-        }
-
         $qb = $this->createQueryBuilder('s');
         $qb->select('s')
             ->where('s.status = :status')
             ->setParameter('status', WeeklySubmission::STATUS_SUPERVISOR_APPROVED)
-            ->andWhere('s.user IN (:userIds)')
-            ->setParameter('userIds', $userIds)
             ->orderBy('s.weekStart', 'DESC');
+
+        $conditions = $qb->expr()->orX(
+            $qb->expr()->eq('s.reassignedTo', ':reassignedTo')
+        );
+        $qb->setParameter('reassignedTo', $user);
+
+        if (!empty($userIds)) {
+            $conditions->add($qb->expr()->in('s.user', ':userIds'));
+            $qb->setParameter('userIds', $userIds);
+        }
+
+        $qb->andWhere($conditions);
 
         return $qb->getQuery()->getResult();
     }
@@ -303,17 +316,23 @@ class WeeklySubmissionRepository extends EntityRepository
 
         $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $supervisor->getId()));
 
-        if (empty($userIds)) {
-            return [];
-        }
-
         $qb = $this->createQueryBuilder('s');
         $qb->select('s')
             ->where('s.status IN (:statuses)')
             ->setParameter('statuses', [WeeklySubmission::STATUS_APPROVED, WeeklySubmission::STATUS_REJECTED])
-            ->andWhere('s.user IN (:userIds)')
-            ->setParameter('userIds', $userIds)
             ->orderBy('s.approvedAt', 'DESC');
+
+        $conditions = $qb->expr()->orX(
+            $qb->expr()->eq('s.reassignedTo', ':reassignedTo')
+        );
+        $qb->setParameter('reassignedTo', $supervisor);
+
+        if (!empty($userIds)) {
+            $conditions->add($qb->expr()->in('s.user', ':userIds'));
+            $qb->setParameter('userIds', $userIds);
+        }
+
+        $qb->andWhere($conditions);
 
         return $qb->getQuery()->getResult();
     }

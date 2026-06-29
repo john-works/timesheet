@@ -22,6 +22,7 @@
                                 <th>Total Hours</th>
                                 <th>Submitted</th>
                                 <th>Current User</th>
+                                <th>Comment</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -34,18 +35,28 @@
                                     {% set hours = (submission.totalDuration / 3600)|number_format(2) %}{{ hours }}h
                                 </td>
                                 <td>{{ submission.submittedAt ? submission.submittedAt|date('d/m/Y H:i') : '-' }}</td>
-                                <td>{{ submission.user.supervisor ? submission.user.supervisor.displayName : '-' }}</td>
+                                <td>{{ submission.currentApprover ? submission.currentApprover.displayName : '-' }}</td>
+                                <td>{{ submission.managerNotes ?: (submission.supervisorNotes ?: '-') }}</td>
                                 <td class="actions-cell">
-                                    <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="btn btn-info btn-sm remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
-                                        <i class="fas fa-eye"></i> View
-                                    </a>
-                                    {% if submission.id in actableIds %}
-                                    <button type="button" class="btn btn-success btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#approveModal{{ submission.id }}">
-                                        <i class="fas fa-check"></i> Approve
-                                    </button>
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#rejectModal{{ submission.id }}">
-                                        <i class="fas fa-times"></i> Reject
-                                    </button>
+                                    <div class="dropdown">
+                                        <a href="#" data-bs-toggle="dropdown" style="text-decoration:none">
+                                            <i class="fas fa-bars" style="color:blue"></i>
+                                        </a>
+                                        <div class="dropdown-menu dropdown-menu-right">
+                                            <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="dropdown-item remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
+                                                <i class="fas fa-eye" style="color:#0056b3;width:1.5rem"></i> View
+                                            </a>
+                                            {% if submission.id in actableIds %}
+                                            <div class="dropdown-divider"></div>
+                                            <a href="#" class="dropdown-item" onclick="event.preventDefault();" data-bs-toggle="modal" data-bs-target="#approveModal{{ submission.id }}">
+                                                <i class="fas fa-check" style="color:#28a745;width:1.5rem"></i> Approve
+                                            </a>
+                                            <a href="#" class="dropdown-item" onclick="event.preventDefault();" data-bs-toggle="modal" data-bs-target="#rejectModal{{ submission.id }}">
+                                                <i class="fas fa-times" style="color:#dc3545;width:1.5rem"></i> Reject
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
 
                                     <div class="modal fade" id="approveModal{{ submission.id }}" tabindex="-1">
                                         <div class="modal-dialog">
@@ -104,7 +115,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -135,6 +145,7 @@
                             <th>Total Hours</th>
                             <th>Supervisor</th>
                             <th>Approved At</th>
+                            <th>Comment</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -148,17 +159,27 @@
                             </td>
                             <td>{{ submission.approvedBy ? submission.approvedBy.displayName : '-' }}</td>
                             <td>{{ submission.approvedAt ? submission.approvedAt|date('d/m/Y H:i') : '-' }}</td>
+                            <td>{{ submission.managerNotes ?: (submission.supervisorNotes ?: '-') }}</td>
                             <td class="actions-cell">
-                                <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="btn btn-info btn-sm remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
-                                    <i class="fas fa-eye"></i> View
-                                </a>
-                                {% if submission.id in managerActableIds %}
-                                <button type="button" class="btn btn-success btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#finalApproveModal{{ submission.id }}">
-                                    <i class="fas fa-check"></i> Final Approve
-                                </button>
-                                <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#rejectModal{{ submission.id }}">
-                                    <i class="fas fa-times"></i> Reject
-                                </button>
+                                <div class="dropdown">
+                                        <a href="#" data-bs-toggle="dropdown" style="text-decoration:none">
+                                            <i class="fas fa-bars" style="color:blue"></i>
+                                        </a>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a href="{{ path('weekly_submission_supervisor_view_modal', {id: submission.id}) }}" class="dropdown-item remote-modal-load" data-modal-title="Timesheet - {{ submission.user.displayName }}" data-modal-class="p-0">
+                                            <i class="fas fa-eye" style="color:#0056b3;width:1.5rem"></i> View
+                                        </a>
+                                        {% if submission.id in managerActableIds %}
+                                        <div class="dropdown-divider"></div>
+                                        <a href="#" class="dropdown-item" onclick="event.preventDefault();" data-bs-toggle="modal" data-bs-target="#finalApproveModal{{ submission.id }}">
+                                            <i class="fas fa-check" style="color:#28a745;width:1.5rem"></i> Final Approve
+                                        </a>
+                                        <a href="#" class="dropdown-item" onclick="event.preventDefault();" data-bs-toggle="modal" data-bs-target="#rejectModal{{ submission.id }}">
+                                            <i class="fas fa-times" style="color:#dc3545;width:1.5rem"></i> Reject
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
 
                                 <div class="modal fade" id="finalApproveModal{{ submission.id }}" tabindex="-1">
                                     <div class="modal-dialog">
@@ -222,7 +243,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -236,5 +256,7 @@
 
 <style>
 .actions-cell { white-space: nowrap; }
+.actions-cell .dropdown-item:hover { background:#0056b3; color:#fff !important; }
+.actions-cell .dropdown-item:hover i { color:#fff !important; }
 </style>
 {% endblock %}

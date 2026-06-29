@@ -38,6 +38,7 @@ final class SupervisorController extends AbstractController
             if ($this->canActOnSubmission($submission, $user)) {
                 $actableIds[] = $submission->getId();
             }
+            $submission->setCurrentApprover($submission->getReassignedTo() ?? $submission->getUser()->getSupervisor());
         }
 
         $managerSubmissions = $this->repository->findSupervisorApprovedForManager($user);
@@ -46,6 +47,7 @@ final class SupervisorController extends AbstractController
             if ($this->canActAsManager($submission, $user)) {
                 $managerActableIds[] = $submission->getId();
             }
+            $submission->setCurrentApprover($submission->getReassignedTo() ?? $this->repository->getNextApprover($submission->getUser()));
         }
 
         return $this->render('@WeeklySubmission/supervisor/pending.html.twig', [
@@ -60,6 +62,18 @@ final class SupervisorController extends AbstractController
     public function history(#[CurrentUser] User $user): Response
     {
         $submissions = $this->repository->findHistoryForSupervisor($user);
+
+        foreach ($submissions as $submission) {
+            if ($submission->isSubmitted()) {
+                $submission->setCurrentApprover($submission->getUser()->getSupervisor());
+            } elseif ($submission->isSupervisorApproved()) {
+                $submission->setCurrentApprover($this->repository->getNextApprover($submission->getUser()));
+            } elseif ($submission->isApproved()) {
+                $submission->setCurrentApprover($submission->getUser());
+            } elseif ($submission->isRejected()) {
+                $submission->setCurrentApprover($submission->getUser());
+            }
+        }
 
         return $this->render('@WeeklySubmission/supervisor/history.html.twig', [
             'submissions' => $submissions,
@@ -181,6 +195,8 @@ final class SupervisorController extends AbstractController
                 $submission->setApprovedBy($user);
                 $submission->setApprovedAt(new \DateTimeImmutable());
                 $submission->setSupervisorNotes($request->request->get('notes'));
+                $submission->setReassignedTo(null);
+                $this->restoreOriginalSupervisor($submission);
 
                 $this->entityManager->persist($submission);
                 $this->entityManager->flush();
@@ -201,6 +217,8 @@ final class SupervisorController extends AbstractController
                 $submission->setApprovedBy($user);
                 $submission->setApprovedAt(new \DateTimeImmutable());
                 $submission->setSupervisorNotes($request->request->get('notes'));
+                $submission->setReassignedTo(null);
+                $this->restoreOriginalSupervisor($submission);
 
                 $this->entityManager->persist($submission);
                 $this->entityManager->flush();
@@ -226,6 +244,8 @@ final class SupervisorController extends AbstractController
             $submission->setManagerApprovedBy($user);
             $submission->setManagerApprovedAt(new \DateTimeImmutable());
             $submission->setManagerNotes($request->request->get('notes'));
+            $submission->setReassignedTo(null);
+            $this->restoreOriginalSupervisor($submission);
 
             $this->entityManager->persist($submission);
             $this->entityManager->flush();
@@ -525,6 +545,10 @@ final class SupervisorController extends AbstractController
             return true;
         }
 
+        if ($submission->getReassignedTo() !== null) {
+            return $submission->getReassignedTo()->getId() === $user->getId();
+        }
+
         $userIds = $this->repository->getViewableUserIds($user);
 
         if (in_array($submission->getUser()->getId(), $userIds, true)) {
@@ -543,6 +567,10 @@ final class SupervisorController extends AbstractController
 
     private function canActOnSubmission(WeeklySubmission $submission, User $user): bool
     {
+        if ($submission->getReassignedTo() !== null) {
+            return $submission->getReassignedTo()->getId() === $user->getId();
+        }
+
         $staffUser = $submission->getUser();
 
         if ($this->repository->isSeniorOfficer($staffUser)) {
@@ -556,6 +584,10 @@ final class SupervisorController extends AbstractController
 
     private function canActAsManager(WeeklySubmission $submission, User $user): bool
     {
+        if ($submission->getReassignedTo() !== null) {
+            return $submission->getReassignedTo()->getId() === $user->getId();
+        }
+
         $staffUser = $submission->getUser();
 
         if ($staffUser->isDirector()) {
@@ -569,5 +601,19 @@ final class SupervisorController extends AbstractController
 
         $managedIds = $this->repository->getManagedUserIds($user);
         return in_array($staffUser->getId(), $managedIds, true);
+    }
+
+    private function restoreOriginalSupervisor(WeeklySubmission $submission): void
+    {
+        $originalSupervisor = $submission->getOriginalSupervisor();
+        if ($originalSupervisor === null) {
+            return;
+        }
+
+        $staffUser = $submission->getUser();
+        $staffUser->setSupervisor($originalSupervisor);
+        $submission->setOriginalSupervisor(null);
+
+        $this->entityManager->persist($staffUser);
     }
 }

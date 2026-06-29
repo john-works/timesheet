@@ -64,26 +64,36 @@ final class AdminController extends AbstractController
 
         $staffUser = $submission->getUser();
         $oldSupervisor = $staffUser->getSupervisor();
-        $staffUser->setSupervisor($newSupervisor);
+        $previousReassigned = $submission->getReassignedTo();
 
-        $this->entityManager->persist($staffUser);
+        if ($submission->getOriginalSupervisor() === null) {
+            $submission->setOriginalSupervisor($oldSupervisor);
+        }
+
+        $submission->setReassignedTo($newSupervisor);
+
+        $this->entityManager->persist($submission);
         $this->entityManager->flush();
 
         $this->addFlash('success', sprintf(
             'Submission for %s (%s) reassigned from %s to %s.',
             $staffUser->getDisplayName(),
             $submission->getWeekStart()->format('d/m/Y'),
-            $oldSupervisor?->getDisplayName() ?? 'none',
+            $previousReassigned?->getDisplayName() ?? $oldSupervisor?->getDisplayName() ?? 'none',
             $newSupervisor->getDisplayName()
         ));
 
         return $this->redirectToRoute('weekly_submission_admin_index');
     }
 
-    private function canViewSubmission(WeeklySubmission $submission, User $user): bool
+    public function canViewSubmission(WeeklySubmission $submission, User $user): bool
     {
         if ($this->isGranted('view_other_timesheet')) {
             return true;
+        }
+
+        if ($submission->getReassignedTo() !== null) {
+            return $submission->getReassignedTo()->getId() === $user->getId();
         }
 
         $userIds = $this->repository->getViewableUserIds($user);
