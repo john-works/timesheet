@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 #[IsGranted('IS_AUTHENTICATED_REMEMBERED')]
@@ -27,6 +28,13 @@ final class SupervisorController extends AbstractController
         private readonly TimesheetRepository $timesheetRepository
     )
     {
+    }
+
+    #[Route('/supervisor/bell', name: 'weekly_submission_supervisor_bell', methods: ['GET'])]
+    public function notificationBell(#[CurrentUser] User $user): Response
+    {
+        $result = $this->repository->countPendingNotifications($user);
+        return $this->render('@WeeklySubmission/supervisor/notification_bell.html.twig', $result);
     }
 
     #[Route('/supervisor/pending', name: 'weekly_submission_supervisor_pending', methods: ['GET'])]

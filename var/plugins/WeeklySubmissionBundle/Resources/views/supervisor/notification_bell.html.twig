@@ -1,0 +1,15 @@
+<style>
+#notification-link { position:relative; }
+#notification-count { display:none; font-size:0.55rem; min-width:1rem; line-height:1; padding:0.2rem 0.35rem; }
+@keyframes bell-pulse { from { opacity:0.7; } to { opacity:1; } }
+</style>
+<div class="nav-item d-flex align-items-center ms-2 position-relative" id="notification-bell">
+{% set hasNotifs = count > 0 %}
+{% set target = actionCount > 0 ? path('weekly_submission_supervisor_pending') : path('weekly_submission_staff') %}
+    <a id="notification-link" href="{{ target }}" class="btn btn-default btn-icon px-sm-2" title="Notifications">
+        <i id="notification-icon" class="fas fa-bell {{ hasNotifs ? 'text-danger' : 'text-muted' }}" style="font-size:1.1rem{{ hasNotifs ? ';animation:bell-pulse 1s ease-in-out infinite alternate' : '' }}"></i>
+        {% if hasNotifs %}
+        <span id="notification-count" class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill" style="display:inline">{{ count }}</span>
+        {% endif %}
+    </a>
+</div>

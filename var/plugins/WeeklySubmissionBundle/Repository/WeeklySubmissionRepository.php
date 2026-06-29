@@ -459,4 +459,82 @@ class WeeklySubmissionRepository extends EntityRepository
 
         return stripos($title, 'Senior Officer') === 0 || stripos($title, 'Senior Office') === 0;
     }
+
+    public function countPendingNotifications(User $user): array
+    {
+        $submittedIds = $this->getViewableUserIds($user);
+        $managerIds = $this->getSupervisorApprovedUserIds($user);
+
+        $actionCount = 0;
+        $ownCount = 0;
+
+        // Count STATUS_SUBMITTED needing supervisor action
+        $qb = $this->createQueryBuilder('s');
+        $qb->select('COUNT(s.id)')
+            ->where('s.status = :submitted')
+            ->setParameter('submitted', WeeklySubmission::STATUS_SUBMITTED);
+
+        $submittedConditions = $qb->expr()->orX(
+            $qb->expr()->eq('s.reassignedTo', ':user')
+        );
+        $qb->setParameter('user', $user);
+
+        if (!empty($submittedIds)) {
+            $submittedConditions->add($qb->expr()->in('s.user', ':submittedIds'));
+            $qb->setParameter('submittedIds', $submittedIds);
+        }
+
+        $qb->andWhere($submittedConditions);
+        $actionCount += (int) $qb->getQuery()->getSingleScalarResult();
+
+        // Count STATUS_SUPERVISOR_APPROVED needing manager action
+        $qb2 = $this->createQueryBuilder('s');
+        $qb2->select('COUNT(s.id)')
+            ->where('s.status = :supervisorApproved')
+            ->setParameter('supervisorApproved', WeeklySubmission::STATUS_SUPERVISOR_APPROVED);
+
+        $managerConditions = $qb2->expr()->orX(
+            $qb2->expr()->eq('s.reassignedTo', ':user2')
+        );
+        $qb2->setParameter('user2', $user);
+
+        if (!empty($managerIds)) {
+            $managerConditions->add($qb2->expr()->in('s.user', ':managerIds'));
+            $qb2->setParameter('managerIds', $managerIds);
+        }
+
+        $qb2->andWhere($managerConditions);
+        $actionCount += (int) $qb2->getQuery()->getSingleScalarResult();
+
+        // Count user's own submissions with recent activity (last 7 days)
+        $sevenDaysAgo = new \DateTimeImmutable('-7 days');
+        $qb3 = $this->createQueryBuilder('s');
+        $qb3->select('COUNT(s.id)')
+            ->where('s.user = :self')
+            ->setParameter('self', $user)
+            ->andWhere('s.status IN (:selfStatuses)')
+            ->setParameter('selfStatuses', [
+                WeeklySubmission::STATUS_SUBMITTED,
+                WeeklySubmission::STATUS_APPROVED,
+                WeeklySubmission::STATUS_REJECTED,
+                WeeklySubmission::STATUS_SUPERVISOR_APPROVED,
+            ])
+            ->andWhere(
+                $qb3->expr()->orX(
+                    $qb3->expr()->eq('s.status', ':submittedSelf'),
+                    $qb3->expr()->gte('s.approvedAt', ':since'),
+                    $qb3->expr()->gte('s.managerApprovedAt', ':since')
+                )
+            )
+            ->setParameter('submittedSelf', WeeklySubmission::STATUS_SUBMITTED)
+            ->setParameter('since', $sevenDaysAgo);
+
+        $ownCount += (int) $qb3->getQuery()->getSingleScalarResult();
+
+        return [
+            'count' => $actionCount + $ownCount,
+            'actionCount' => $actionCount,
+            'ownCount' => $ownCount,
+        ];
+    }
 }

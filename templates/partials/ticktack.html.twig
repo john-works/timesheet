@@ -21,3 +21,21 @@
         </div>
     </div>
 </div>
+<div id="notification-bell-wrap" style="display:contents">
+{{ render(controller('KimaiPlugin\\WeeklySubmissionBundle\\Controller\\SupervisorController::notificationBell')) }}
+</div>
+<script>
+(function() {
+    var wrap = document.getElementById('notification-bell-wrap');
+    var url = '{{ path('weekly_submission_supervisor_bell') }}';
+    function refresh() {
+        fetch(url, {credentials:'same-origin'})
+            .then(function(r) { return r.text(); })
+            .then(function(html) { if (wrap) wrap.innerHTML = html; })
+            .catch(function() {});
+    }
+    refresh();
+    setInterval(refresh, 15000);
+    document.addEventListener('submit', function() { setTimeout(refresh, 500); });
+})();
+</script>
