@@ -9,6 +9,11 @@
                 <h3 class="card-title">My Weekly Timesheet</h3>
                 <div class="card-tools">
                     <strong>{{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}</strong>
+                    {% if app.request.get('id') is not null %}
+                        <a href="{{ path('weekly_submission_staff') }}" class="btn btn-sm btn-outline-primary ms-2">
+                            <i class="fas fa-arrow-left"></i> Current Week
+                        </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body">
@@ -63,7 +68,7 @@
                             {% endif %}
                             <br><br>
                             <a href="{{ path('timesheet') }}" class="alert-link">Edit your timesheet entries</a>
-                            for this week, then submit again below.
+                            for the week of {{ weekStart|date('d/m/Y') }}, then submit again below.
                         </div>
                     {% endif %}
                 {% endif %}
@@ -158,7 +163,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <form action="{{ path('weekly_submission_staff_submit') }}" method="post" style="display:inline;">
+                <form action="{{ app.request.get('id') ? path('weekly_submission_staff_resubmit', {id: app.request.get('id')}) : path('weekly_submission_staff_submit') }}" method="post" style="display:inline;">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i> {% if submission.isRejected %}Yes, Resubmit{% else %}Yes, Submit Now{% endif %}
                     </button>
@@ -196,7 +201,9 @@
                                 {% elseif entry.isSupervisorApproved %}
                                     <span class="badge bg-info">Supervisor Approved</span>
                                 {% elseif entry.isRejected %}
-                                    <span class="badge bg-danger">Rejected</span>
+                                    <a href="{{ path('weekly_submission_staff_week', {id: entry.id}) }}" class="text-decoration-none">
+                                        <span class="badge bg-danger">Rejected</span>
+                                    </a>
                                 {% elseif entry.isSubmitted %}
                                     <span class="badge bg-primary">Submitted</span>
                                 {% else %}
@@ -205,7 +212,14 @@
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
                             <td>{% if entry.isDraft or entry.isRejected %}{{ app.user.displayName }}{% elseif entry.isApproved %}{{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : entry.approvedBy.displayName }}{% elseif entry.isSupervisorApproved %}{{ entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-' }}{% elseif entry.isSubmitted %}{{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}{% endif %}</td>
-                            <td>{{ entry.managerNotes ?: (entry.supervisorNotes ?: '-') }}</td>
+                            <td>
+                                {{ entry.managerNotes ?: (entry.supervisorNotes ?: '-') }}
+                                {% if entry.isRejected %}
+                                    <a href="{{ path('weekly_submission_staff_week', {id: entry.id}) }}" class="btn btn-sm btn-warning float-end">
+                                        <i class="fas fa-edit"></i> Edit &amp; Resubmit
+                                    </a>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

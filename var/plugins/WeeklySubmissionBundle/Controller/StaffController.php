@@ -34,10 +34,23 @@ final class StaffController extends AbstractController
     }
 
     #[Route('/my-weekly', name: 'weekly_submission_staff', methods: ['GET'])]
-    public function index(#[CurrentUser] User $user): Response
+    #[Route('/my-weekly/{id}', name: 'weekly_submission_staff_week', methods: ['GET'])]
+    public function index(#[CurrentUser] User $user, ?int $id = null): Response
     {
-        $weekStart = $this->getCurrentWeekStart();
-        $submission = $this->repository->findForUserAndWeek($user, $weekStart);
+        if ($id !== null) {
+            $submission = $this->repository->find($id);
+            if ($submission === null || $submission->getUser()->getId() !== $user->getId()) {
+                throw $this->createNotFoundException('Submission not found.');
+            }
+            if (!$submission->isRejected()) {
+                $this->addFlash('error', 'Only rejected submissions can be edited.');
+                return $this->redirectToRoute('weekly_submission_staff');
+            }
+            $weekStart = $submission->getWeekStart();
+        } else {
+            $weekStart = $this->getCurrentWeekStart();
+            $submission = $this->repository->findForUserAndWeek($user, $weekStart);
+        }
 
         if ($submission === null) {
             $submission = new WeeklySubmission($user, $weekStart);
@@ -78,10 +91,23 @@ final class StaffController extends AbstractController
     }
 
     #[Route('/my-weekly/submit', name: 'weekly_submission_staff_submit', methods: ['POST'])]
-    public function submit(#[CurrentUser] User $user, Request $request): Response
+    #[Route('/my-weekly/{id}/submit', name: 'weekly_submission_staff_resubmit', methods: ['POST'])]
+    public function submit(#[CurrentUser] User $user, Request $request, ?int $id = null): Response
     {
-        $weekStart = $this->getCurrentWeekStart();
-        $submission = $this->repository->findForUserAndWeek($user, $weekStart);
+        if ($id !== null) {
+            $submission = $this->repository->find($id);
+            if ($submission === null || $submission->getUser()->getId() !== $user->getId()) {
+                throw $this->createNotFoundException('Submission not found.');
+            }
+            if (!$submission->isRejected()) {
+                $this->addFlash('error', 'Only rejected submissions can be resubmitted.');
+                return $this->redirectToRoute('weekly_submission_staff', ['id' => $id]);
+            }
+            $weekStart = $submission->getWeekStart();
+        } else {
+            $weekStart = $this->getCurrentWeekStart();
+            $submission = $this->repository->findForUserAndWeek($user, $weekStart);
+        }
 
         if ($submission === null) {
             $submission = new WeeklySubmission($user, $weekStart);
@@ -148,13 +174,13 @@ final class StaffController extends AbstractController
 
         if (empty($timesheets)) {
             $this->addFlash('error', 'You cannot submit an empty timesheet. Please create at least one timesheet entry first.');
-            return $this->redirectToRoute('weekly_submission_staff');
+            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 
         $totalDuration = $this->calculateWeekDuration($user, $weekStart);
         if ($totalDuration <= 0 && count($coveredDays) === 0) {
             $this->addFlash('error', 'You cannot submit an empty timesheet. All entries must have a duration greater than zero.');
-            return $this->redirectToRoute('weekly_submission_staff');
+            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 
         $submission->setTotalDuration($totalDuration);
@@ -180,7 +206,7 @@ final class StaffController extends AbstractController
         }
 
         $this->addFlash('success', 'Weekly timesheet submitted successfully.');
-        return $this->redirectToRoute('weekly_submission_staff');
+        return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
     }
 
     private function buildHolidayEntry(User $user, \DateTimeImmutable $date, string $holidayName): ?Timesheet
