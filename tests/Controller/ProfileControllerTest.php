@@ -201,7 +201,7 @@ class ProfileControllerTest extends AbstractControllerBaseTestCase
         /** @var PasswordHasherFactoryInterface $passwordEncoder */
         $passwordEncoder = self::getContainer()->get('security.password_hasher_factory');
 
-        self::assertTrue($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), UserFixtures::DEFAULT_PASSWORD));
+        self::assertTrue($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), UserFixtures::PASSWORD));
         self::assertFalse($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), 'test123'));
         self::assertEquals(UserFixtures::USERNAME_USER, $user->getUserIdentifier());
 
@@ -220,7 +220,7 @@ class ProfileControllerTest extends AbstractControllerBaseTestCase
         // are the old ones, so following the redirect would fail with "Unauthorized".
 
         $user = $this->getUserByRole(User::ROLE_USER);
-        self::assertFalse($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), UserFixtures::DEFAULT_PASSWORD));
+        self::assertFalse($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), UserFixtures::PASSWORD));
         self::assertTrue($passwordEncoder->getPasswordHasher($user)->verify($user->getPassword(), 'test1234'));
     }
 

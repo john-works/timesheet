@@ -65,7 +65,7 @@ class SecurityControllerTest extends AbstractControllerBaseTestCase
         $form = $client->getCrawler()->filter('body form')->form();
         $client->submit($form, [
             '_username' => UserFixtures::USERNAME_SUPER_ADMIN,
-            '_password' => UserFixtures::DEFAULT_PASSWORD
+            '_password' => UserFixtures::PASSWORD
         ]);
 
         $this->assertIsRedirect($client); // redirect to root URL
