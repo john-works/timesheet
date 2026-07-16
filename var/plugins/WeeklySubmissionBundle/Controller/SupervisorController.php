@@ -5,6 +5,7 @@ namespace KimaiPlugin\WeeklySubmissionBundle\Controller;
 use App\Entity\Timesheet;
 use App\Entity\User;
 use App\Repository\TimesheetRepository;
+use App\Repository\UserRepository;
 use App\Repository\Query\TimesheetQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission;
@@ -25,7 +26,8 @@ final class SupervisorController extends AbstractController
         private readonly WeeklySubmissionRepository $repository,
         private readonly WeeklySubmissionMailer $mailer,
         private readonly EntityManagerInterface $entityManager,
-        private readonly TimesheetRepository $timesheetRepository
+        private readonly TimesheetRepository $timesheetRepository,
+        private readonly UserRepository $userRepository
     )
     {
     }
@@ -58,11 +60,25 @@ final class SupervisorController extends AbstractController
             $submission->setCurrentApprover($submission->getReassignedTo() ?? $this->repository->getNextApprover($submission->getUser()));
         }
 
+        $departmentUsersMap = [];
+        $allSubmissions = array_merge($submissions, $managerSubmissions);
+        foreach ($allSubmissions as $submission) {
+            $staffUser = $submission->getUser();
+            $deptUserIds = $this->repository->getDepartmentUserIds($staffUser);
+            if (!empty($deptUserIds)) {
+                $departmentUsersMap[$submission->getId()] = $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']);
+            } else {
+                $departmentUsersMap[$submission->getId()] = [];
+            }
+        }
+
         return $this->render('@WeeklySubmission/supervisor/pending.html.twig', [
             'submissions' => $submissions,
             'actableIds' => $actableIds,
             'managerSubmissions' => $managerSubmissions,
             'managerActableIds' => $managerActableIds,
+            'departmentUsersMap' => $departmentUsersMap,
+            'isAdmin' => $this->isGranted('ROLE_ADMIN'),
         ]);
     }
 
@@ -76,6 +92,8 @@ final class SupervisorController extends AbstractController
                 $submission->setCurrentApprover($submission->getUser()->getSupervisor());
             } elseif ($submission->isSupervisorApproved()) {
                 $submission->setCurrentApprover($this->repository->getNextApprover($submission->getUser()));
+            } elseif ($submission->isManagerApproved()) {
+                $submission->setCurrentApprover(null); // Pending HR approval
             } elseif ($submission->isApproved()) {
                 $submission->setCurrentApprover($submission->getUser());
             } elseif ($submission->isRejected()) {
@@ -198,7 +216,7 @@ final class SupervisorController extends AbstractController
             $nextApprover = $this->repository->getNextApprover($submission->getUser());
 
             if ($nextApprover === null) {
-                // No next approver configured - finalize approval directly
+                // No next approver - finalize approval directly (single-level workflow)
                 $submission->setStatus(WeeklySubmission::STATUS_APPROVED);
                 $submission->setApprovedBy($user);
                 $submission->setApprovedAt(new \DateTimeImmutable());
@@ -214,13 +232,22 @@ final class SupervisorController extends AbstractController
                 } catch (\Exception $e) {
                 }
 
-                $this->addFlash('success', sprintf(
-                    'Weekly submission for %s (%s) has been approved!',
-                    $submission->getUser()->getDisplayName(),
-                    $submission->getWeekStart()->format('d/m/Y')
-                ));
+                if ($submission->isOvertime()) {
+                    $this->addFlash('success', sprintf(
+                        'Weekly submission for %s (%s) has been approved! (overtime: %d hours)',
+                        $submission->getUser()->getDisplayName(),
+                        $submission->getWeekStart()->format('d/m/Y'),
+                        $submission->getOvertimeHours()
+                    ));
+                } else {
+                    $this->addFlash('success', sprintf(
+                        'Weekly submission for %s (%s) has been approved!',
+                        $submission->getUser()->getDisplayName(),
+                        $submission->getWeekStart()->format('d/m/Y')
+                    ));
+                }
             } else {
-                // Forward to next approver (manager or director)
+                // Forward to next approver (multi-level workflow)
                 $submission->setStatus(WeeklySubmission::STATUS_SUPERVISOR_APPROVED);
                 $submission->setApprovedBy($user);
                 $submission->setApprovedAt(new \DateTimeImmutable());
@@ -236,19 +263,30 @@ final class SupervisorController extends AbstractController
                 } catch (\Exception $e) {
                 }
 
-                $this->addFlash('success', sprintf(
-                    'Weekly submission for %s (%s) has been approved by supervisor and forwarded to the next approver.',
-                    $submission->getUser()->getDisplayName(),
-                    $submission->getWeekStart()->format('d/m/Y')
-                ));
+                if ($submission->isOvertime()) {
+                    $this->addFlash('success', sprintf(
+                        'Weekly submission for %s (%s) has been approved by supervisor and forwarded to manager for HR approval (overtime: %d hours).',
+                        $submission->getUser()->getDisplayName(),
+                        $submission->getWeekStart()->format('d/m/Y'),
+                        $submission->getOvertimeHours()
+                    ));
+                } else {
+                    $this->addFlash('success', sprintf(
+                        'Weekly submission for %s (%s) has been approved by supervisor and forwarded to the next approver.',
+                        $submission->getUser()->getDisplayName(),
+                        $submission->getWeekStart()->format('d/m/Y')
+                    ));
+                }
             }
 
             return $this->redirectToRoute('weekly_submission_supervisor_pending');
         }
 
-        // If user is a manager/director (final stage approval)
+        // If user is a manager/director (second stage approval for overtime)
         if ($isManager && $submission->isSupervisorApproved()) {
-            $submission->setStatus(WeeklySubmission::STATUS_APPROVED);
+            // If overtime, forward to HR (simulate by marking as manager_approved)
+            // In a real system, this would notify HR users
+            $submission->setStatus(WeeklySubmission::STATUS_MANAGER_APPROVED);
             $submission->setManagerApprovedBy($user);
             $submission->setManagerApprovedAt(new \DateTimeImmutable());
             $submission->setManagerNotes($request->request->get('notes'));
@@ -263,12 +301,50 @@ final class SupervisorController extends AbstractController
             } catch (\Exception $e) {
             }
 
-            $this->addFlash('success', sprintf(
-                'Weekly submission for %s (%s) has been fully approved!',
-                $submission->getUser()->getDisplayName(),
-                $submission->getWeekStart()->format('d/m/Y')
-            ));
+            if ($submission->isOvertime()) {
+                $this->addFlash('success', sprintf(
+                    'Weekly submission for %s (%s) has been approved by manager and is pending HR approval (overtime: %d hours).',
+                    $submission->getUser()->getDisplayName(),
+                    $submission->getWeekStart()->format('d/m/Y'),
+                    $submission->getOvertimeHours()
+                ));
+            } else {
+                $this->addFlash('success', sprintf(
+                    'Weekly submission for %s (%s) has been fully approved!',
+                    $submission->getUser()->getDisplayName(),
+                    $submission->getWeekStart()->format('d/m/Y')
+                ));
+            }
             return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
+
+        // If user is HR (final approval for overtime)
+        if ($submission->isManagerApproved() && $submission->isOvertime()) {
+            // Check if user has HR role
+            if ($this->isGranted('ROLE_ADMIN') || $this->isGranted('ROLE_HUMAN_RESOURCES')) {
+                $submission->setStatus(WeeklySubmission::STATUS_APPROVED);
+                $submission->setHrApprovedBy($user->getId());
+                $submission->setHrApprovedAt(new \DateTimeImmutable());
+                $submission->setHrNotes($request->request->get('notes'));
+
+                $this->entityManager->persist($submission);
+                $this->entityManager->flush();
+
+                try {
+                    $this->mailer->sendApprovedNotification($submission);
+                } catch (\Exception $e) {
+                }
+
+                $this->addFlash('success', sprintf(
+                    'Weekly submission for %s (%s) has been fully approved by HR!',
+                    $submission->getUser()->getDisplayName(),
+                    $submission->getWeekStart()->format('d/m/Y')
+                ));
+                return $this->redirectToRoute('weekly_submission_supervisor_pending');
+            } else {
+                $this->addFlash('error', 'You do not have HR privileges to approve overtime submissions.');
+                return $this->redirectToRoute('weekly_submission_supervisor_pending');
+            }
         }
 
         $this->addFlash('error', 'Cannot process approval at this stage.');
@@ -332,7 +408,7 @@ final class SupervisorController extends AbstractController
                 $submission->getUser()->getDisplayName(),
                 $submission->getWeekStart()->format('d/m/Y')
             ));
-        } else {
+        } elseif ($isManager && $submission->isSupervisorApproved()) {
             // Manager rejects — send back to supervisor instead of the employee
             $submission->setStatus(WeeklySubmission::STATUS_SUBMITTED);
             $submission->setManagerApprovedBy($user);
@@ -355,7 +431,33 @@ final class SupervisorController extends AbstractController
                 $submission->getUser()->getDisplayName(),
                 $submission->getWeekStart()->format('d/m/Y')
             ));
+        } elseif ($submission->isManagerApproved() && $this->isGranted('ROLE_ADMIN')) {
+            // HR rejects — send back to manager
+            $submission->setStatus(WeeklySubmission::STATUS_SUPERVISOR_APPROVED);
+            $submission->setHrApprovedBy(null);
+            $submission->setHrApprovedAt(null);
+            $submission->setHrNotes($notes);
+
+            $this->entityManager->persist($submission);
+            $this->entityManager->flush();
+
+            $manager = $this->repository->getNextApprover($submission->getUser());
+            if ($manager !== null) {
+                try {
+                    $this->mailer->sendManagerRejectedNotification($submission, $manager);
+                } catch (\Exception $e) {
+                }
+            }
+
+            $this->addFlash('warning', sprintf(
+                'Weekly submission for %s (%s) has been rejected by HR and sent back to the manager.',
+                $submission->getUser()->getDisplayName(),
+                $submission->getWeekStart()->format('d/m/Y')
+            ));
+        } else {
+            $this->addFlash('error', 'You are not authorized to reject this submission.');
         }
+
         return $this->redirectToRoute('weekly_submission_supervisor_pending');
     }
 
@@ -370,8 +472,8 @@ final class SupervisorController extends AbstractController
             return $this->redirectToRoute('weekly_submission_supervisor_pending');
         }
 
-        if (!$submission->isSubmitted()) {
-            $this->addFlash('error', 'Only submitted submissions can be reassigned.');
+        if (!$submission->isSubmitted() && !$submission->isSupervisorApproved()) {
+            $this->addFlash('error', 'Only submitted or supervisor-approved submissions can be reassigned.');
             return $this->redirectToRoute('weekly_submission_supervisor_pending');
         }
 
@@ -384,6 +486,11 @@ final class SupervisorController extends AbstractController
         }
 
         $staffUser = $submission->getUser();
+        $departmentUserIds = $this->repository->getDepartmentUserIds($staffUser);
+        if (!in_array((int) $newSupervisorId, $departmentUserIds, true)) {
+            $this->addFlash('error', 'Selected user is not in the same department as the staff member.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
         $oldSupervisor = $staffUser->getSupervisor();
         $staffUser->setSupervisor($newSupervisor);
 
@@ -557,6 +664,11 @@ final class SupervisorController extends AbstractController
             return $submission->getReassignedTo()->getId() === $user->getId();
         }
 
+        // ED can view all department directors' submissions
+        if ($this->repository->isEdUser($user) && $submission->getUser()->isDirector()) {
+            return true;
+        }
+
         $userIds = $this->repository->getViewableUserIds($user);
 
         if (in_array($submission->getUser()->getId(), $userIds, true)) {
@@ -581,6 +693,28 @@ final class SupervisorController extends AbstractController
 
         $staffUser = $submission->getUser();
 
+        // Single-level workflow for Regional Offices department
+        if ($this->repository->isInRegionalDepartment($staffUser)) {
+            // Director of the department → approved by ED only
+            if ($staffUser->isDirector()) {
+                return $this->repository->isEdUser($user);
+            }
+
+            // Regional Manager → approved by department director only
+            if ($this->repository->isRegionalManager($staffUser)) {
+                return $this->repository->isRegionalDirector($user);
+            }
+
+            // Officers/below → approved by their team lead or supervisor
+            $managedIds = $this->repository->getManagedUserIds($user);
+            if (in_array($staffUser->getId(), $managedIds, true)) {
+                return true;
+            }
+
+            $supervisorIds = $this->repository->getSupervisedUserIds($user);
+            return in_array($staffUser->getId(), $supervisorIds, true);
+        }
+
         if ($this->repository->isSeniorOfficer($staffUser)) {
             $managedIds = $this->repository->getManagedUserIds($user);
             return in_array($staffUser->getId(), $managedIds, true);
@@ -597,6 +731,11 @@ final class SupervisorController extends AbstractController
         }
 
         $staffUser = $submission->getUser();
+
+        // Single-level workflow for Regional Offices - no second stage needed
+        if ($this->repository->isInRegionalDepartment($staffUser)) {
+            return false;
+        }
 
         if ($staffUser->isDirector()) {
             return false;

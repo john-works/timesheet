@@ -22,6 +22,9 @@
                                 <th>Total Hours</th>
                                 <th>Submitted</th>
                                 <th>Current User</th>
+                                {% if isAdmin %}
+                                <th>Reassign To</th>
+                                {% endif %}
                                 <th>Comment</th>
                                 <th>Actions</th>
                             </tr>
@@ -33,9 +36,29 @@
                                 <td>{{ submission.weekStart|date('d/m/Y') }} - {{ submission.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                                 <td>
                                     {% set hours = (submission.totalDuration / 3600)|number_format(2) %}{{ hours }}h
+                                    {% if submission.isOvertime %}
+                                        <span class="badge bg-warning text-dark">Overtime: {{ submission.overtimeHours }}h</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ submission.submittedAt ? submission.submittedAt|date('d/m/Y H:i') : '-' }}</td>
                                 <td>{{ submission.currentApprover ? submission.currentApprover.displayName : '-' }}</td>
+                                {% if isAdmin %}
+                                <td>
+                                    {% set deptUsers = departmentUsersMap[submission.id] ?? [] %}
+                                    {% if deptUsers|length > 0 %}
+                                    <form action="{{ path('weekly_submission_supervisor_reassign', {id: submission.id}) }}" method="post" class="d-flex gap-1">
+                                        <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:130px" required>
+                                            {% for u in deptUsers %}
+                                                <option value="{{ u.id }}" {% if submission.reassignedTo and submission.reassignedTo.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-exchange-alt"></i></button>
+                                    </form>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
                                 <td>{{ submission.managerNotes ?: (submission.supervisorNotes ?: '-') }}</td>
                                 <td class="actions-cell">
                                     <div class="dropdown">
@@ -72,6 +95,10 @@
                                                         </div>
                                                         <div class="mb-3">
                                                             <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h
+                                                            {% if submission.isOvertime %}
+                                                                <span class="badge bg-warning text-dark">Overtime: {{ submission.overtimeHours }}h</span>
+                                                                <br><small class="text-muted">This submission will require manager and HR approval due to overtime.</small>
+                                                            {% endif %}
                                                         </div>
                                                         <div class="mb-3">
                                                             <label for="notes{{ submission.id }}" class="form-label">Notes (optional)</label>
@@ -145,6 +172,9 @@
                             <th>Total Hours</th>
                             <th>Supervisor</th>
                             <th>Approved At</th>
+                            {% if isAdmin %}
+                            <th>Reassign To</th>
+                            {% endif %}
                             <th>Comment</th>
                             <th>Actions</th>
                         </tr>
@@ -156,9 +186,29 @@
                             <td>{{ submission.weekStart|date('d/m/Y') }} - {{ submission.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                             <td>
                                 {% set hours = (submission.totalDuration / 3600)|number_format(2) %}{{ hours }}h
+                                {% if submission.isOvertime %}
+                                    <span class="badge bg-warning text-dark">Overtime: {{ submission.overtimeHours }}h</span>
+                                {% endif %}
                             </td>
                             <td>{{ submission.approvedBy ? submission.approvedBy.displayName : '-' }}</td>
                             <td>{{ submission.approvedAt ? submission.approvedAt|date('d/m/Y H:i') : '-' }}</td>
+                            {% if isAdmin %}
+                            <td>
+                                {% set deptUsers = departmentUsersMap[submission.id] ?? [] %}
+                                {% if deptUsers|length > 0 %}
+                                <form action="{{ path('weekly_submission_supervisor_reassign', {id: submission.id}) }}" method="post" class="d-flex gap-1">
+                                    <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:130px" required>
+                                        {% for u in deptUsers %}
+                                            <option value="{{ u.id }}" {% if submission.reassignedTo and submission.reassignedTo.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-exchange-alt"></i></button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
                             <td>{{ submission.managerNotes ?: (submission.supervisorNotes ?: '-') }}</td>
                             <td class="actions-cell">
                                 <div class="dropdown">
@@ -193,13 +243,18 @@
                                                     <div class="alert alert-info">
                                                         Approved by the supervisor 
                                                         ({{ submission.approvedBy ? submission.approvedBy.displayName : 'N/A' }}).
-                                            
+                                                        {% if submission.isOvertime %}
+                                                            <br><strong>Note:</strong> This submission contains overtime ({{ submission.overtimeHours }}h) and will require HR approval after your approval.
+                                                        {% endif %}
                                                     </div>
                                                     <div class="mb-3">
                                                         <strong>Week:</strong> {{ submission.weekStart|date('d/m/Y') }} - {{ submission.weekStart|date_modify('+4 days')|date('d/m/Y') }}
                                                     </div>
                                                     <div class="mb-3">
                                                         <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h
+                                                        {% if submission.isOvertime %}
+                                                            <span class="badge bg-warning text-dark">Overtime: {{ submission.overtimeHours }}h</span>
+                                                        {% endif %}
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="managerNotes{{ submission.id }}" class="form-label">Notes (optional)</label>

@@ -21,15 +21,20 @@
                     <div class="mb-3">
                         <strong>Status:</strong>
                         {% if submission.isDraft %}
-                            <span class="badge bg-secondary">Draft</span>
+                            <span class="badge bg-secondary" style="color:#fff !important;">Draft</span>
                         {% elseif submission.isSubmitted %}
                             <span class="badge bg-primary">Submitted</span>
                         {% elseif submission.isSupervisorApproved %}
                             <span class="badge bg-info">Supervisor Approved</span>
+                        {% elseif submission.isManagerApproved %}
+                            <span class="badge bg-warning text-dark">Manager Approved - Pending HR</span>
                         {% elseif submission.isApproved %}
                             <span class="badge bg-success">Approved</span>
                         {% elseif submission.isRejected %}
                             <span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                        {% if submission.isOvertime %}
+                            <span class="badge bg-warning text-dark">Overtime</span>
                         {% endif %}
                     </div>
 
@@ -44,6 +49,16 @@
                         <div class="alert alert-info">
                             Approved by supervisor on {{ submission.approvedAt|date('d/m/Y H:i') }}.
                             Waiting for final approval from manager.
+                            {% if submission.isOvertime %}
+                                <br><strong>Note:</strong> This submission contains overtime ({{ submission.overtimeHours }}h) and requires manager and HR approval.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    {% if submission.isManagerApproved %}
+                        <div class="alert alert-warning">
+                            Approved by manager on {{ submission.managerApprovedAt|date('d/m/Y H:i') }}.
+                            Waiting for HR approval (overtime: {{ submission.overtimeHours }}h).
                         </div>
                     {% endif %}
 
@@ -77,6 +92,9 @@
                     <strong>Total hours this week:</strong>
                     {% set hours = (totalDuration / 3600)|number_format(2) %}
                     {{ hours }}h
+                    {% if totalDuration > 40 * 3600 %}
+                        <span class="badge bg-warning text-dark">Overtime: {{ ((totalDuration - 40 * 3600) / 3600)|number_format(1) }}h</span>
+                    {% endif %}
                     {% if leaveDays|default([])|length > 0 %}
                         <br><span class="badge bg-info">{{ leaveDays|length }} day(s) on leave</span>
                     {% endif %}
@@ -94,13 +112,14 @@
                     {% endif %}
                 </div>
 
-                {% if supervisor is null %}
+                {% if supervisor is null and departmentUsers|length == 0 %}
                     <div class="alert alert-warning">
                         You do not have a supervisor assigned. Please contact your administrator.
                     </div>
-                {% elseif not canSubmit %}
+                {% endif %}
+                {% if not canSubmit %}
                     <div class="alert alert-info">
-                        <i class="fas fa-clock"></i> Submission is available on <strong>Friday at 4:00 PM</strong>.
+                        <i class="fas fa-clock"></i> Weekly timesheets can only be submitted on <strong>Fridays</strong>.
                     </div>
                 {% elseif submission.isDraft %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
@@ -126,6 +145,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form action="{{ app.request.get('id') ? path('weekly_submission_staff_resubmit', {id: app.request.get('id')}) : path('weekly_submission_staff_submit') }}" method="post">
             <div class="modal-body">
                 <div class="alert alert-info mb-3">
                     <strong>Please review your timesheet before {% if submission.isRejected %}resubmitting{% else %}submitting{% endif %}.</strong>
@@ -139,13 +159,24 @@
                     <div class="col-md-6">
                         <strong>Total Hours:</strong><br>
                         {% set hours = (totalDuration / 3600)|number_format(2) %}
-                        <span class="badge bg-primary" style="font-size: 1.2em;">{{ hours }}h</span>
+                        <span class="badge bg-primary" style="font-size: 1.2em; color:#fff !important;">{{ hours }}h</span>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <strong>Supervisor:</strong><br>
-                    {{ supervisor.displayName }}
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <label for="supervisorSelect" class="form-label fw-bold mb-0">
+                        <i class="fas fa-user-tie"></i> Supervisor:
+                    </label>
+                    {% if departmentUsers|length > 0 %}
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select form-select-sm" style="max-width:300px" required>
+                        <option value="" disabled selected>-- Select your supervisor --</option>
+                        {% for u in departmentUsers %}
+                            <option value="{{ u.id }}">{{ u.displayName }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                        <span>{{ supervisor ? supervisor.displayName : '-' }}</span>
+                    {% endif %}
                 </div>
 
                 <hr>
@@ -163,12 +194,11 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <form action="{{ app.request.get('id') ? path('weekly_submission_staff_resubmit', {id: app.request.get('id')}) : path('weekly_submission_staff_submit') }}" method="post" style="display:inline;">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane"></i> {% if submission.isRejected %}Yes, Resubmit{% else %}Yes, Submit Now{% endif %}
-                    </button>
-                </form>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> {% if submission.isRejected %}Yes, Resubmit{% else %}Yes, Submit Now{% endif %}
+                </button>
             </div>
+            </form>
         </div>
     </div>
 </div>
@@ -198,6 +228,8 @@
                             <td>
                                 {% if entry.isApproved %}
                                     <span class="badge bg-success">Approved</span>
+                                {% elseif entry.isManagerApproved %}
+                                    <span class="badge bg-warning text-dark">Manager Approved - Pending HR</span>
                                 {% elseif entry.isSupervisorApproved %}
                                     <span class="badge bg-info">Supervisor Approved</span>
                                 {% elseif entry.isRejected %}
@@ -207,7 +239,10 @@
                                 {% elseif entry.isSubmitted %}
                                     <span class="badge bg-primary">Submitted</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Draft</span>
+                                    <span class="badge bg-secondary" style="color:#fff !important;">Draft</span>
+                                {% endif %}
+                                {% if entry.isOvertime %}
+                                    <span class="badge bg-warning text-dark">Overtime</span>
                                 {% endif %}
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>

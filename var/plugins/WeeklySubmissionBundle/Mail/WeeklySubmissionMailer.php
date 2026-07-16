@@ -127,4 +127,23 @@ class WeeklySubmissionMailer
 
         $this->mailer->sendToUser($supervisor, $email);
     }
+
+    public function sendSubmissionReminder(User $user): void
+    {
+        $email = (new Email())
+            ->subject('Timesheet Submission Reminder')
+            ->to(new \Symfony\Component\Mime\Address($user->getEmail(), $user->getDisplayName() ?? ''))
+            ->replyTo('noreply@timesheet.ppda.go.ug')
+            ->html(
+                sprintf(
+                    '<p>Dear %s,</p>
+                     <p>This is a reminder to submit your timesheet for this week.</p>
+                     <p>Please ensure all your timesheet entries are submitted by <strong>Friday 4:00 PM</strong>to <strong>Saturday 7:00 PM.</p>
+                     <p>Thank you.</p>',
+                    htmlspecialchars($user->getDisplayName() ?? $user->getUserIdentifier())
+                )
+            );
+
+        $this->mailer->sendToUser($user, $email);
+    }
 }

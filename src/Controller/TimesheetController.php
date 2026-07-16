@@ -74,8 +74,8 @@ final class TimesheetController extends TimesheetAbstractController
         if ($request->isMethod('POST') && $this->isTodayEntry($entry->getBegin())) {
             $now = new \DateTime();
             $hour = (int) $now->format('G');
-            if ($hour < 16) {
-                $this->addFlash('error', 'Timesheets for today can only be entered from 4:00 PM onwards.');
+            if ($hour < 8) {
+                $this->addFlash('error', 'Timesheets for today can only be entered after 8:00 AM.');
                 return $this->redirectToRoute($this->getTimesheetRoute());
             }
         }
@@ -145,8 +145,8 @@ final class TimesheetController extends TimesheetAbstractController
             if ($beginDate !== null && $this->isTodayEntry($beginDate)) {
                 $now = new \DateTime();
                 $hour = (int) $now->format('G');
-                if ($hour < 16) {
-                    $this->addFlash('error', 'Timesheets for today can only be entered from 4:00 PM onwards.');
+                if ($hour < 8) {
+                    $this->addFlash('error', 'Timesheets for today can only be entered after 8:00 AM.');
                     return $this->redirectToRoute($this->getTimesheetRoute());
                 }
             }

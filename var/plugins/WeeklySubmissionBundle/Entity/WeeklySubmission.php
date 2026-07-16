@@ -16,6 +16,7 @@ class WeeklySubmission
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SUBMITTED = 'submitted';
     public const STATUS_SUPERVISOR_APPROVED = 'supervisor_approved';
+    public const STATUS_MANAGER_APPROVED = 'manager_approved';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
 
@@ -68,6 +69,21 @@ class WeeklySubmission
     #[ORM\JoinColumn(name: 'original_supervisor', nullable: true, onDelete: 'SET NULL')]
     private ?User $originalSupervisor = null;
 
+    #[ORM\Column(name: 'is_overtime', type: Types::BOOLEAN, nullable: false, options: ['default' => false])]
+    private bool $isOvertime = false;
+
+    #[ORM\Column(name: 'overtime_hours', type: Types::INTEGER, nullable: false, options: ['default' => 0])]
+    private int $overtimeHours = 0;
+
+    #[ORM\Column(name: 'hr_approved_by', type: Types::INTEGER, nullable: true)]
+    private ?int $hrApprovedBy = null;
+
+    #[ORM\Column(name: 'hr_approved_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $hrApprovedAt = null;
+
+    #[ORM\Column(name: 'hr_notes', type: Types::TEXT, nullable: true)]
+    private ?string $hrNotes = null;
+
     private ?User $currentApprover = null;
 
     public function __construct(User $user, \DateTimeImmutable $weekStart)
@@ -119,6 +135,11 @@ class WeeklySubmission
     public function isSupervisorApproved(): bool
     {
         return $this->status === self::STATUS_SUPERVISOR_APPROVED;
+    }
+
+    public function isManagerApproved(): bool
+    {
+        return $this->status === self::STATUS_MANAGER_APPROVED;
     }
 
     public function isApproved(): bool
@@ -229,6 +250,56 @@ class WeeklySubmission
     public function setOriginalSupervisor(?User $originalSupervisor): void
     {
         $this->originalSupervisor = $originalSupervisor;
+    }
+
+    public function isOvertime(): bool
+    {
+        return $this->isOvertime;
+    }
+
+    public function setIsOvertime(bool $isOvertime): void
+    {
+        $this->isOvertime = $isOvertime;
+    }
+
+    public function getOvertimeHours(): int
+    {
+        return $this->overtimeHours;
+    }
+
+    public function setOvertimeHours(int $overtimeHours): void
+    {
+        $this->overtimeHours = $overtimeHours;
+    }
+
+    public function getHrApprovedBy(): ?int
+    {
+        return $this->hrApprovedBy;
+    }
+
+    public function setHrApprovedBy(?int $hrApprovedBy): void
+    {
+        $this->hrApprovedBy = $hrApprovedBy;
+    }
+
+    public function getHrApprovedAt(): ?\DateTimeImmutable
+    {
+        return $this->hrApprovedAt;
+    }
+
+    public function setHrApprovedAt(?\DateTimeImmutable $hrApprovedAt): void
+    {
+        $this->hrApprovedAt = $hrApprovedAt;
+    }
+
+    public function getHrNotes(): ?string
+    {
+        return $this->hrNotes;
+    }
+
+    public function setHrNotes(?string $hrNotes): void
+    {
+        $this->hrNotes = $hrNotes;
     }
 
     public function getCurrentApprover(): ?User

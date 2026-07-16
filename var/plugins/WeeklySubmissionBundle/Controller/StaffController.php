@@ -7,6 +7,7 @@ use App\Entity\Project;
 use App\Entity\Timesheet;
 use App\Entity\User;
 use App\Repository\TimesheetRepository;
+use App\Repository\UserRepository;
 use App\Repository\Query\TimesheetQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission;
@@ -29,6 +30,7 @@ final class StaffController extends AbstractController
         private readonly WeeklySubmissionMailer $mailer,
         private readonly EntityManagerInterface $entityManager,
         private readonly PublicHolidayRepository $holidayRepository,
+        private readonly UserRepository $userRepository,
     )
     {
     }
@@ -76,7 +78,14 @@ final class StaffController extends AbstractController
             }
         }
 
-        $canSubmit = true;
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
+
+        // Weekly submissions can only be submitted on Fridays
+        $canSubmit = ($dayOfWeek === 5);
+
+        $deptUserIds = $this->repository->getDepartmentUserIds($user);
+        $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
@@ -87,6 +96,7 @@ final class StaffController extends AbstractController
             'supervisor' => $user->getSupervisor(),
             'leaveDays' => $leaveDays,
             'canSubmit' => $canSubmit,
+            'departmentUsers' => $departmentUsers,
         ]);
     }
 
@@ -116,6 +126,14 @@ final class StaffController extends AbstractController
         if (!$submission->isDraft() && !$submission->isRejected()) {
             $this->addFlash('error', 'This week has already been submitted.');
             return $this->redirectToRoute('weekly_submission_staff');
+        }
+
+        // Weekly submissions can only be submitted on Fridays
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $dayOfWeek = (int) $now->format('N');
+        if ($dayOfWeek !== 5) {
+            $this->addFlash('error', 'Weekly timesheets can only be submitted on Fridays.');
+            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 
         $weekEnd = $weekStart->modify('+7 days');
@@ -183,7 +201,31 @@ final class StaffController extends AbstractController
             return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 
+        // Check for overtime (more than 40 hours per week)
+        $overtimeThreshold = 40 * 3600; // 40 hours in seconds
+        $isOvertime = $totalDuration > $overtimeThreshold;
+        $overtimeHours = $isOvertime ? (int) (($totalDuration - $overtimeThreshold) / 3600) : 0;
+
+        $selectedSupervisorId = $request->request->get('supervisor_id');
+        if ($selectedSupervisorId !== null && $selectedSupervisorId !== '') {
+            $selectedSupervisor = $this->userRepository->find((int) $selectedSupervisorId);
+            if ($selectedSupervisor !== null && $selectedSupervisor->isEnabled()) {
+                $deptUserIds = $this->repository->getDepartmentUserIds($user);
+                if (in_array((int) $selectedSupervisorId, $deptUserIds, true)) {
+                    $user->setSupervisor($selectedSupervisor);
+                    $this->entityManager->persist($user);
+                }
+            }
+        }
+
+        if ($user->getSupervisor() === null) {
+            $this->addFlash('error', 'You must select a supervisor before submitting.');
+            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
+        }
+
         $submission->setTotalDuration($totalDuration);
+        $submission->setIsOvertime($isOvertime);
+        $submission->setOvertimeHours($overtimeHours);
         $submission->setStatus(WeeklySubmission::STATUS_SUBMITTED);
         $submission->setSubmittedAt(new \DateTimeImmutable());
         $submission->setApprovedBy(null);
@@ -192,6 +234,9 @@ final class StaffController extends AbstractController
         $submission->setManagerApprovedBy(null);
         $submission->setManagerApprovedAt(null);
         $submission->setManagerNotes(null);
+        $submission->setHrApprovedBy(null);
+        $submission->setHrApprovedAt(null);
+        $submission->setHrNotes(null);
 
         $this->entityManager->persist($submission);
         $this->entityManager->flush();

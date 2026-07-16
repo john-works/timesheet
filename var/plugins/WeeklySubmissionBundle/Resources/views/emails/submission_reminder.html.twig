@@ -1,0 +1,10 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Timesheet Submission Reminder{% endblock %}
+
+{% block body %}
+<p>Dear {{ user.displayName }},</p>
+<p>This is a reminder to submit your timesheet for this week.</p>
+<p>Please ensure all your timesheet entries are submitted by <strong>Friday 4:00 PM</strong>.</p>
+<p>Thank you.</p>
+{% endblock %}
