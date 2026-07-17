@@ -476,7 +476,8 @@ class WeeklySubmissionRepository extends EntityRepository
             return 'manager';
         }
 
-        return null;
+        // If supervisor IS the team lead (same person), fall back to department director
+        return $this->getDirectorForUser($staffUser) !== null ? 'director' : null;
     }
 
     /**
@@ -512,7 +513,8 @@ class WeeklySubmissionRepository extends EntityRepository
             return $this->getEntityManager()->getRepository(User::class)->find($managerIds[0]);
         }
 
-        return null;
+        // If supervisor IS the team lead (same person), fall back to department director
+        return $this->getDirectorForUser($staffUser);
     }
 
     /**
