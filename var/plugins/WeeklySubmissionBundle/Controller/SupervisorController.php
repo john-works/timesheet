@@ -773,7 +773,13 @@ final class SupervisorController extends AbstractController
             return false;
         }
 
-        // Department director is the final approver for all non-manager staff
+        // Team leads/managers can approve their team members
+        $managedIds = $this->repository->getManagedUserIds($user);
+        if (in_array($staffUser->getId(), $managedIds, true)) {
+            return true;
+        }
+
+        // Directors can approve senior officers in their department
         $directorManagedIds = $this->repository->getDirectorManagedUserIds($user);
         if (in_array($staffUser->getId(), $directorManagedIds, true)) {
             return true;

@@ -252,7 +252,7 @@
                                 {% elseif entry.isRejected %}
                                     {{ app.user.displayName }}
                                 {% elseif entry.isApproved %}
-                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : entry.approvedBy.displayName }}
+                                    {{ app.user.displayName }}
                                 {% elseif entry.isManagerApproved %}
                                     HR (Human Resources)
                                 {% elseif entry.isSupervisorApproved %}
