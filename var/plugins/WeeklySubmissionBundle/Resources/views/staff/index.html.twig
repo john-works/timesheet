@@ -112,7 +112,7 @@
                     {% endif %}
                 </div>
 
-                {% if supervisor is null and departmentUsers|length == 0 %}
+                {% if supervisor is null and departmentUsers|length == 0 and not is_granted('ROLE_DIRECTOR') %}
                     <div class="alert alert-warning">
                         You do not have a supervisor assigned. Please contact your administrator.
                     </div>

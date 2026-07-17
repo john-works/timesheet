@@ -539,8 +539,8 @@ class WeeklySubmissionRepository extends EntityRepository
         $stmt = $conn->executeQuery($sql, ['user_id' => $userId]);
         $userIds = array_map('intval', $stmt->fetchFirstColumn());
 
-        // Regional department directors can also select the ED as supervisor
-        if ($this->isRegionalDirector($user)) {
+        // All directors can select the ED as supervisor
+        if ($user->isDirector()) {
             $edSql = "SELECT director_id FROM kimai2_departments WHERE name = 'Executive Director''s Office' AND director_id IS NOT NULL";
             $edId = $conn->fetchOne($edSql);
             if ($edId !== false) {
@@ -702,5 +702,22 @@ class WeeklySubmissionRepository extends EntityRepository
             'actionCount' => $actionCount,
             'ownCount' => $ownCount,
         ];
+    }
+
+    public function findSubmissionForDate(User $user, \DateTimeInterface $date): ?WeeklySubmission
+    {
+        $dayOfWeek = (int) $date->format('N');
+        $monday = (clone (\DateTimeImmutable::createFromInterface($date)))
+            ->modify('-' . ($dayOfWeek - 1) . ' days');
+        $weekDate = $monday->format('Y-m-d');
+
+        $qb = $this->createQueryBuilder('ws');
+        $qb->where('ws.user = :user')
+            ->andWhere('DATE(ws.weekStart) = :weekStart')
+            ->setParameter('user', $user)
+            ->setParameter('weekStart', $weekDate)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 }

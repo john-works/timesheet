@@ -27,3 +27,6 @@ services:
         factory: ['@doctrine.orm.entity_manager', getRepository]
         arguments: ['KimaiPlugin\WeeklySubmissionBundle\Entity\PublicHoliday']
         autowire: false
+
+    KimaiPlugin\WeeklySubmissionBundle\Twig\WeeklySubmissionExtension:
+        tags: ['twig.extension']

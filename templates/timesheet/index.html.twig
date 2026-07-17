@@ -2,6 +2,19 @@
 {% import "macros/widgets.html.twig" as widgets %}
 {% import "macros/datatables.html.twig" as tables %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        tr.rejected-entry td {
+            background-color: #f8d7da !important;
+            color: #721c24 !important;
+        }
+        tr.rejected-entry:hover td {
+            background-color: #f5c6cb !important;
+        }
+    </style>
+{% endblock %}
+
 {% block datatable_outer %}
     {% set checkOverlappingDesc = false %}
     {% set checkOverlappingAsc = false %}
@@ -84,6 +97,9 @@
     {% endif %}
     {% if not entry.end %}
         {% set class = class ~ ' recording' %}
+    {% endif %}
+    {% if is_rejected_period(entry) %}
+        {% set class = class ~ ' rejected-entry' %}
     {% endif %}
     {% if is_granted('edit', entry) %} class="modal-ajax-form open-edit{{ class }}" data-href="{{ path(editRoute, {'id': entry.id}) }}"{% endif %}
 {% endblock %}

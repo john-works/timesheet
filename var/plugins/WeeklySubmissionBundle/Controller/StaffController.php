@@ -87,6 +87,8 @@ final class StaffController extends AbstractController
 
         $deptUserIds = $this->repository->getDepartmentUserIds($user);
         $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
+        $departmentUsers = array_filter($departmentUsers, fn($u) => $u->getId() !== $user->getId());
+        $departmentUsers = array_values($departmentUsers);
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
