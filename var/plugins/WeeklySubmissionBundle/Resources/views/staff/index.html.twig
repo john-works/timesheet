@@ -119,7 +119,7 @@
                 {% endif %}
                 {% if not canSubmit %}
                     <div class="alert alert-info">
-                        <i class="fas fa-clock"></i> Weekly timesheets can only be submitted on <strong>Fridays</strong>.
+                        <i class="fas fa-clock"></i> Weekly timesheets can only be submitted on <strong>Friday at 8:00 AM or later</strong>.
                     </div>
                 {% elseif submission.isDraft %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
@@ -217,7 +217,7 @@
                             <th>Week</th>
                             <th>Status</th>
                             <th>Submitted</th>
-                            <th>Current User</th>
+                            <th>Stage</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -246,7 +246,21 @@
                                 {% endif %}
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
-                            <td>{% if entry.isDraft or entry.isRejected %}{{ app.user.displayName }}{% elseif entry.isApproved %}{{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : entry.approvedBy.displayName }}{% elseif entry.isSupervisorApproved %}{{ entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-' }}{% elseif entry.isSubmitted %}{{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}{% endif %}</td>
+                            <td>
+                                {% if entry.isDraft %}
+                                    {{ app.user.displayName }}
+                                {% elseif entry.isRejected %}
+                                    {{ app.user.displayName }}
+                                {% elseif entry.isApproved %}
+                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : entry.approvedBy.displayName }}
+                                {% elseif entry.isManagerApproved %}
+                                    HR (Human Resources)
+                                {% elseif entry.isSupervisorApproved %}
+                                    {{ entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-' }}
+                                {% elseif entry.isSubmitted %}
+                                    {{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}
+                                {% endif %}
+                            </td>
                             <td>
                                 {{ entry.managerNotes ?: (entry.supervisorNotes ?: '-') }}
                                 {% if entry.isRejected %}

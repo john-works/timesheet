@@ -21,7 +21,7 @@
                                 <th>Week</th>
                                 <th>Total Hours</th>
                                 <th>Submitted</th>
-                                <th>Current User</th>
+                                <th>Stage</th>
                                 {% if isAdmin %}
                                 <th>Reassign To</th>
                                 {% endif %}
@@ -41,7 +41,19 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ submission.submittedAt ? submission.submittedAt|date('d/m/Y H:i') : '-' }}</td>
-                                <td>{{ submission.currentApprover ? submission.currentApprover.displayName : '-' }}</td>
+                                <td>
+                                    {% if submission.isSubmitted %}
+                                        {{ submission.user.supervisor ? submission.user.supervisor.displayName : '-' }}
+                                    {% elseif submission.isSupervisorApproved %}
+                                        {{ submission.user.supervisor.supervisor ? submission.user.supervisor.supervisor.displayName : '-' }}
+                                    {% elseif submission.isManagerApproved %}
+                                        HR (Human Resources)
+                                    {% elseif submission.isApproved %}
+                                        Fully Approved
+                                    {% elseif submission.isRejected %}
+                                        Rejected
+                                    {% endif %}
+                                </td>
                                 {% if isAdmin %}
                                 <td>
                                     {% set deptUsers = departmentUsersMap[submission.id] ?? [] %}
@@ -170,7 +182,7 @@
                             <th>Staff</th>
                             <th>Week</th>
                             <th>Total Hours</th>
-                            <th>Supervisor</th>
+                            <th>Stage</th>
                             <th>Approved At</th>
                             {% if isAdmin %}
                             <th>Reassign To</th>
@@ -190,7 +202,13 @@
                                     <span class="badge bg-warning text-dark">Overtime: {{ submission.overtimeHours }}h</span>
                                 {% endif %}
                             </td>
-                            <td>{{ submission.approvedBy ? submission.approvedBy.displayName : '-' }}</td>
+                            <td>
+                                {% if submission.isSupervisorApproved %}
+                                    {{ submission.user.supervisor.supervisor ? submission.user.supervisor.supervisor.displayName : '-' }}
+                                {% elseif submission.isManagerApproved %}
+                                    HR (Human Resources)
+                                {% endif %}
+                            </td>
                             <td>{{ submission.approvedAt ? submission.approvedAt|date('d/m/Y H:i') : '-' }}</td>
                             {% if isAdmin %}
                             <td>

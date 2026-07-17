@@ -81,8 +81,9 @@ final class StaffController extends AbstractController
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
         $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
 
-        // Weekly submissions can only be submitted on Fridays
-        $canSubmit = ($dayOfWeek === 5);
+        // Weekly submissions can only be submitted on Friday at 8:00 AM or later
+        $hour = (int) $now->format('G');
+        $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
 
         $deptUserIds = $this->repository->getDepartmentUserIds($user);
         $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
@@ -128,11 +129,12 @@ final class StaffController extends AbstractController
             return $this->redirectToRoute('weekly_submission_staff');
         }
 
-        // Weekly submissions can only be submitted on Fridays
+        // Weekly submissions can only be submitted on Friday at 8:00 AM or later
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
         $dayOfWeek = (int) $now->format('N');
-        if ($dayOfWeek !== 5) {
-            $this->addFlash('error', 'Weekly timesheets can only be submitted on Fridays.');
+        $hour = (int) $now->format('G');
+        if ($dayOfWeek !== 5 || $hour < 8) {
+            $this->addFlash('error', 'Weekly timesheets can only be submitted on Friday at 8:00 AM or later.');
             return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 

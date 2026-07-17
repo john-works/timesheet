@@ -283,28 +283,17 @@ class WeeklySubmissionRepository extends EntityRepository
      */
     private function getSupervisorApprovedUserIds(User $user): array
     {
-        $managedIds = $this->getManagedUserIds($user);
         $directorManagedIds = $this->getDirectorManagedUserIds($user);
 
         $userIds = [];
 
-        if (!empty($managedIds)) {
-            $users = $this->getEntityManager()
-                ->getRepository(User::class)
-                ->findBy(['id' => $managedIds]);
-            foreach ($users as $u) {
-                if (!$this->isSeniorOfficer($u) && !$u->isDirector()) {
-                    $userIds[] = $u->getId();
-                }
-            }
-        }
-
+        // Director sees all non-manager, non-director staff for final approval
         if (!empty($directorManagedIds)) {
             $users = $this->getEntityManager()
                 ->getRepository(User::class)
                 ->findBy(['id' => $directorManagedIds]);
             foreach ($users as $u) {
-                if ($this->isSeniorOfficer($u)) {
+                if (!$this->isTeamLead($u) && !$u->isDirector()) {
                     $userIds[] = $u->getId();
                 }
             }
@@ -464,17 +453,15 @@ class WeeklySubmissionRepository extends EntityRepository
             return null;
         }
 
-        if ($this->isSeniorOfficer($staffUser)) {
-            $director = $this->getDirectorForUser($staffUser);
-            if ($director !== null) {
-                return 'director';
-            }
+        // Managers (team leads) — single-step, director is the final approver
+        if ($this->isTeamLead($staffUser)) {
             return null;
         }
 
-        $managerIds = $this->getManagerIdsForUser($staffUser);
-        if (!empty($managerIds)) {
-            return 'manager';
+        // Senior Officers and Officers/Below — director is the final approver
+        $director = $this->getDirectorForUser($staffUser);
+        if ($director !== null) {
+            return 'director';
         }
 
         return null;
@@ -494,13 +481,16 @@ class WeeklySubmissionRepository extends EntityRepository
             return null;
         }
 
-        if ($this->isSeniorOfficer($staffUser)) {
-            return $this->getDirectorForUser($staffUser);
+        // Managers (team leads) — their department director is their supervisor
+        // and is the final approver (single step). No next approver needed.
+        if ($this->isTeamLead($staffUser)) {
+            return null;
         }
 
-        $managerIds = $this->getManagerIdsForUser($staffUser);
-        if (!empty($managerIds)) {
-            return $this->getEntityManager()->getRepository(User::class)->find($managerIds[0]);
+        // Senior Officers and Officers/Below — department director is the final approver
+        $director = $this->getDirectorForUser($staffUser);
+        if ($director !== null) {
+            return $director;
         }
 
         return null;
