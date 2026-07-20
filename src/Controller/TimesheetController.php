@@ -146,8 +146,43 @@ final class TimesheetController extends TimesheetAbstractController
                 $now = new \DateTime();
                 $hour = (int) $now->format('G');
                 if ($hour < 8) {
-                    $this->addFlash('error', 'Timesheets for today can only be entered after 8:00 AM.');
-                    return $this->redirectToRoute($this->getTimesheetRoute());
+                    $entry = $this->service->createNewTimesheet($this->getUser(), $request);
+                    $createForm = $this->getCreateForm($entry);
+                    $createForm->handleRequest($request);
+                    $createForm->addError(new \Symfony\Component\Form\FormError('Timesheets for today can only be entered after 8:00 AM.'));
+
+                    return $this->render('timesheet/edit.html.twig', [
+                        'page_setup' => $this->createPageSetup(),
+                        'route_back' => $this->getTimesheetRoute(),
+                        'timesheet' => $entry,
+                        'form' => $createForm->createView(),
+                        'template' => $this->getTrackingMode()->getEditTemplate(),
+                    ]);
+                }
+            }
+
+            if ($beginDate !== null) {
+                $dateObj = new \DateTime($beginDate);
+                $dayOfWeek = (int) $dateObj->format('N');
+                if ($dayOfWeek >= 6) {
+                    $entry = $this->service->createNewTimesheet($this->getUser(), $request);
+                    $createForm = $this->getCreateForm($entry);
+                    $createForm->handleRequest($request);
+                    $this->addFlash('danger', 'Timesheets cannot be created for weekends (Saturday and Sunday).');
+
+                    return $this->render('timesheet/edit.html.twig', [
+                        'page_setup' => $this->createPageSetup(),
+                        'route_back' => $this->getTimesheetRoute(),
+                        'timesheet' => $entry,
+                        'form' => $createForm->createView(),
+                        'template' => $this->getTrackingMode()->getEditTemplate(),
+                    ]);
+                }
+
+                $existing = $this->repository->findRecordForDate($this->getUser(), $dateObj);
+                if ($existing !== null) {
+                    $this->addFlash('danger', 'A timesheet already exists for this date. You have been redirected to edit it.');
+                    return $this->redirectToRoute('timesheet_edit', ['id' => $existing->getId()]);
                 }
             }
         }

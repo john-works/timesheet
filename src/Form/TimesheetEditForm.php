@@ -340,6 +340,9 @@ class TimesheetEditForm extends AbstractType
                 $data = $event->getData();
                 if (null !== $data->getEnd()) {
                     $event->getForm()->get('end_time')->setData($data->getEnd());
+                } elseif ($data->getId() === null) {
+                    $defaultEnd = new \DateTime('today 17:00');
+                    $event->getForm()->get('end_time')->setData($defaultEnd);
                 }
             }
         );
@@ -558,7 +561,7 @@ class TimesheetEditForm extends AbstractType
             'allow_end_datetime' => true,
             'allow_duration' => false,
             'duration_minutes' => null,
-            'duration_hours' => $maxHours,
+            'duration_hours' => 9,
             'attr' => [
                 'data-form-event' => 'kimai.timesheetUpdate',
                 'data-msg-success' => 'action.update.success',

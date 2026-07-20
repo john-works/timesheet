@@ -2,6 +2,16 @@
     {% form_theme form 'form/horizontal.html.twig' %}
     {% set formStartOptions = {'attr': {'novalidate': 'novalidate'}} %}
     {% embed formOptions.template with formOptions %}
+        {% block form_before %}
+            {% for type in ['success', 'warning', 'error', 'info', 'danger'] %}
+                {% for message in app.flashes(type) %}
+                    <div class="alert alert-{{ type }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        {% endblock %}
         {% block form_body %}
             {% if form.begin_date is defined %}
                 <div class="mb-3 row" id="leave-row-begin">
@@ -86,7 +96,7 @@
             {% endif %}
             {% if form.tasks is defined %}
                 <div class="mb-3 row">
-                    <label class="col-form-label col-sm-2">Tasks</label>
+                    <label class="col-form-label col-sm-2 required">Tasks</label>
                     <div class="col-sm-10">
                         <table class="table table-bordered mb-2" id="tasks-table">
                             <thead>
@@ -160,17 +170,49 @@
 
             <script>
             (function() {
-                var formPrefix = '{{ form.vars.name }}';
+                if (window._taskFormInitialized) return;
+                window._taskFormInitialized = true;
+
+                function getFormPrefix(form) {
+                    if (!form) return '{{ form.vars.name }}';
+                    var id = form.id || '';
+                    var match = id.match(/^(.+)_form$/);
+                    return match ? match[1] : '{{ form.vars.name }}';
+                }
+
+                function showAlert(message) {
+                    var existing = document.getElementById('taskAlertModal');
+                    if (existing) existing.remove();
+                    var overlay = document.createElement('div');
+                    overlay.id = 'taskAlertModal';
+                    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+                    overlay.innerHTML = '<div style="background:#fff;border-radius:8px;max-width:420px;width:90%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">' +
+                        '<div style="padding:15px 20px;background:#ffc107;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">' +
+                        '<h5 style="margin:0;font-size:16px;"><i class="fas fa-exclamation-triangle"></i> Validation</h5>' +
+                        '<button type="button" id="taskAlertClose" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>' +
+                        '</div>' +
+                        '<div style="padding:20px;">' + message + '</div>' +
+                        '<div style="padding:10px 20px 20px;text-align:right;">' +
+                        '<button type="button" id="taskAlertOk" class="btn btn-primary">OK</button>' +
+                        '</div>' +
+                        '</div>';
+                    document.body.appendChild(overlay);
+                    function closeAlert() { overlay.remove(); }
+                    document.getElementById('taskAlertClose').addEventListener('click', closeAlert);
+                    document.getElementById('taskAlertOk').addEventListener('click', closeAlert);
+                    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeAlert(); });
+                }
 
                 document.addEventListener('click', function(e) {
                     var addBtn = e.target.closest('#add-task-row');
                     if (addBtn) {
+                        var form = addBtn.closest('form');
+                        var fp = getFormPrefix(form);
                         var tasksList = document.getElementById('tasks-list');
                         if (!tasksList) return;
                         var taskIndex = tasksList.querySelectorAll('tr').length;
-                        var html = '<tr>' +
-                            '<td><input type="text" id="' + formPrefix + '_tasks_' + taskIndex + '_task" name="' + formPrefix + '[tasks][' + taskIndex + '][task]" class="form-control" placeholder="e.g. Working on report, attending meeting, ..."></td>' +
-                            '<td><select id="' + formPrefix + '_tasks_' + taskIndex + '_status" name="' + formPrefix + '[tasks][' + taskIndex + '][status]" class="form-control">' +
+                        var html = '<td><input type="text" name="' + fp + '[tasks][' + taskIndex + '][task]" class="form-control" placeholder="e.g. Working on report, attending meeting, ..."></td>' +
+                            '<td><select name="' + fp + '[tasks][' + taskIndex + '][status]" class="form-control">' +
                             '<option value=""></option>' +
                             '<option value="In Progress">In Progress</option>' +
                             '<option value="Completed">Completed</option>' +
@@ -178,8 +220,7 @@
                             '</select></td>' +
                             '<td class="text-center">' +
                             '<button type="button" class="btn btn-danger btn-sm remove-task-row" title="Remove"><i class="fas fa-trash"></i></button>' +
-                            '</td>' +
-                            '</tr>';
+                            '</td>';
                         var wrapper = document.createElement('tr');
                         wrapper.innerHTML = html;
                         tasksList.appendChild(wrapper);
@@ -192,92 +233,141 @@
                         if (row) {
                             row.remove();
                         }
+                        return;
                     }
-                });
 
-                const activitySel = document.getElementById(formPrefix + '_activity');
-                if (!activitySel) return;
+                    var saveBtn = e.target.closest('#form_modal_save, .modal-form-save, input[type="submit"]');
+                    if (saveBtn) {
+                        var form = saveBtn.closest('form');
+                        if (!form) return;
 
-                const beginDate = document.getElementById(formPrefix + '_begin_date');
-                const leaveEnd = document.getElementById('leaveEnd');
-                const leaveStartHidden = document.getElementById('leaveStart');
-                const leaveDaysCount = document.getElementById('leave-days-count');
-                const leaveRowDays = document.getElementById('leave-row-days');
-                const leaveColTime = document.getElementById('leave-col-time');
-                const leaveColEnddate = document.getElementById('leave-col-enddate');
-                const leaveRowEndtime = document.getElementById('leave-row-endtime');
-                const leaveRowBreak = document.getElementById('leave-row-break');
-                const leaveLabelDefault = document.querySelector('.leave-label-default');
-                const leaveLabelLeave = document.querySelector('.leave-label-leave');
+                        var tasksList = form.querySelector('#tasks-list');
+                        if (!tasksList) return;
 
-                function isLeaveSelected() {
-                    const opt = activitySel.options[activitySel.selectedIndex];
-                    return opt && opt.textContent.trim() === 'Leave';
-                }
-
-                function countWeekdays(s, e) {
-                    var count = 0, cur = new Date(s);
-                    while (cur <= e) {
-                        var d = cur.getDay();
-                        if (d !== 0 && d !== 6) count++;
-                        cur.setDate(cur.getDate() + 1);
-                    }
-                    return count;
-                }
-
-                function updateDaysCount() {
-                    if (beginDate && leaveEnd && beginDate.value && leaveEnd.value) {
-                        var start = new Date(beginDate.value);
-                        var end = new Date(leaveEnd.value);
-                        var days = countWeekdays(start, end);
-                        if (days > 0) {
-                            leaveDaysCount.textContent = days + ' day(s)';
+                        var rows = tasksList.querySelectorAll('tr');
+                        if (rows.length === 0) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            showAlert('Please add at least one task.');
                             return;
                         }
-                    }
-                    leaveDaysCount.textContent = '0 day(s)';
-                }
-
-                function toggleLeaveMode() {
-                    var leave = isLeaveSelected();
-                    if (leaveColTime) leaveColTime.style.display = leave ? 'none' : '';
-                    if (leaveColEnddate) leaveColEnddate.style.display = leave ? '' : 'none';
-                    if (leaveRowEndtime) leaveRowEndtime.style.display = leave ? 'none' : '';
-                    if (leaveRowBreak) leaveRowBreak.style.display = leave ? 'none' : '';
-                    if (leaveRowDays) leaveRowDays.style.display = leave ? '' : 'none';
-                    if (leaveLabelDefault) leaveLabelDefault.style.display = leave ? 'none' : '';
-                    if (leaveLabelLeave) leaveLabelLeave.style.display = leave ? '' : 'none';
-
-                    if (leave && beginDate && leaveStartHidden) {
-                        leaveStartHidden.value = beginDate.value;
-                    }
-                    updateDaysCount();
-                }
-
-                if (beginDate) beginDate.addEventListener('change', function() {
-                    if (isLeaveSelected()) {
-                        if (leaveStartHidden) leaveStartHidden.value = beginDate.value;
-                        if (leaveEnd && !leaveEnd.value) leaveEnd.value = beginDate.value;
-                        updateDaysCount();
-                    }
-                });
-                if (leaveEnd) leaveEnd.addEventListener('change', updateDaysCount);
-
-                var form = activitySel.closest('form');
-                if (form) {
-                    form.addEventListener('submit', function(e) {
-                        if (isLeaveSelected()) {
-                            if (leaveStartHidden) leaveStartHidden.value = beginDate ? beginDate.value : '';
-                            if (!beginDate || !beginDate.value || !leaveEnd || !leaveEnd.value) {
+                        for (var i = 0; i < rows.length; i++) {
+                            var taskInput = rows[i].querySelector('input[type="text"]');
+                            var statusSelect = rows[i].querySelector('select');
+                            if (!taskInput || !taskInput.value.trim()) {
                                 e.preventDefault();
-                                alert('Please enter both start and end dates.');
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                showAlert('Please fill in the Activity Details for all tasks.');
+                                return;
+                            }
+                            if (!statusSelect || !statusSelect.value) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                showAlert('Please select a Status for all tasks.');
+                                return;
                             }
                         }
-                    });
-                }
 
-                activitySel.addEventListener('change', toggleLeaveMode);
-                toggleLeaveMode();
+                        var fp = getFormPrefix(form);
+                        var activitySel = form.querySelector('#' + fp + '_activity');
+                        if (activitySel) {
+                            var opt = activitySel.options[activitySel.selectedIndex];
+                            if (opt && opt.textContent.trim() === 'Leave') {
+                                var beginDate = form.querySelector('#' + fp + '_begin_date');
+                                var leaveEnd = document.getElementById('leaveEnd');
+                                var leaveStartHidden = form.querySelector('#leaveStart');
+                                if (leaveStartHidden && beginDate) leaveStartHidden.value = beginDate.value;
+                                if (!beginDate || !beginDate.value || !leaveEnd || !leaveEnd.value) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.stopImmediatePropagation();
+                                    showAlert('Please enter both start and end dates.');
+                                }
+                            }
+                        }
+                    }
+                }, true);
+
+                document.addEventListener('change', function(e) {
+                    var form = e.target.closest('form');
+                    var fp = getFormPrefix(form);
+                    if (e.target.id === fp + '_activity') {
+                        var opt = e.target.options[e.target.selectedIndex];
+                        var leave = opt && opt.textContent.trim() === 'Leave';
+                        var form = e.target.closest('form');
+                        if (!form) return;
+                        var fp2 = getFormPrefix(form);
+                        var leaveColTime = form.querySelector('#leave-col-time');
+                        var leaveColEnddate = form.querySelector('#leave-col-enddate');
+                        var leaveRowEndtime = form.querySelector('#leave-row-endtime');
+                        var leaveRowBreak = form.querySelector('#leave-row-break');
+                        var leaveRowDays = form.querySelector('#leave-row-days');
+                        var leaveLabelDefault = form.querySelector('.leave-label-default');
+                        var leaveLabelLeave = form.querySelector('.leave-label-leave');
+                        var beginDate = form.querySelector('#' + fp2 + '_begin_date');
+                        var leaveStartHidden = form.querySelector('#leaveStart');
+                        var leaveDaysCount = form.querySelector('#leave-days-count');
+                        var leaveEnd = document.getElementById('leaveEnd');
+
+                        if (leaveColTime) leaveColTime.style.display = leave ? 'none' : '';
+                        if (leaveColEnddate) leaveColEnddate.style.display = leave ? '' : 'none';
+                        if (leaveRowEndtime) leaveRowEndtime.style.display = leave ? 'none' : '';
+                        if (leaveRowBreak) leaveRowBreak.style.display = leave ? 'none' : '';
+                        if (leaveRowDays) leaveRowDays.style.display = leave ? '' : 'none';
+                        if (leaveLabelDefault) leaveLabelDefault.style.display = leave ? 'none' : '';
+                        if (leaveLabelLeave) leaveLabelLeave.style.display = leave ? '' : 'none';
+
+                        if (leave && beginDate && leaveStartHidden) {
+                            leaveStartHidden.value = beginDate.value;
+                        }
+
+                        if (beginDate && leaveEnd && beginDate.value && leaveEnd.value) {
+                            var start = new Date(beginDate.value);
+                            var end = new Date(leaveEnd.value);
+                            var count = 0, cur = new Date(start);
+                            while (cur <= end) {
+                                var d = cur.getDay();
+                                if (d !== 0 && d !== 6) count++;
+                                cur.setDate(cur.getDate() + 1);
+                            }
+                            if (count > 0 && leaveDaysCount) {
+                                leaveDaysCount.textContent = count + ' day(s)';
+                            } else if (leaveDaysCount) {
+                                leaveDaysCount.textContent = '0 day(s)';
+                            }
+                        } else if (leaveDaysCount) {
+                            leaveDaysCount.textContent = '0 day(s)';
+                        }
+                    }
+
+                    if (e.target.id === 'leaveEnd') {
+                        var form = e.target.closest('form');
+                        if (!form) return;
+                        var fp3 = getFormPrefix(form);
+                        var beginDate = form.querySelector('#' + fp3 + '_begin_date');
+                        var leaveDaysCount = form.querySelector('#leave-days-count');
+                        if (beginDate && beginDate.value && e.target.value) {
+                            var start = new Date(beginDate.value);
+                            var end = new Date(e.target.value);
+                            var count = 0, cur = new Date(start);
+                            while (cur <= end) {
+                                var d = cur.getDay();
+                                if (d !== 0 && d !== 6) count++;
+                                cur.setDate(cur.getDate() + 1);
+                            }
+                            if (count > 0 && leaveDaysCount) {
+                                leaveDaysCount.textContent = count + ' day(s)';
+                            } else if (leaveDaysCount) {
+                                leaveDaysCount.textContent = '0 day(s)';
+                            }
+                        } else if (leaveDaysCount) {
+                            leaveDaysCount.textContent = '0 day(s)';
+                        }
+                    }
+                });
             })();
             </script>
         {% endblock %}

@@ -1006,6 +1006,36 @@ class TimesheetRepository extends EntityRepository
         return $result > 0;
     }
 
+    public function findRecordForDate(User $user, \DateTimeInterface $date): ?Timesheet
+    {
+        $qb = $this->getEntityManager()->createQueryBuilder();
+
+        $dayStart = clone $date;
+        $dayStart->setTime(0, 0, 0);
+        $dayEnd = clone $date;
+        $dayEnd->setTime(23, 59, 59);
+
+        $qb
+            ->select('t')
+            ->from(Timesheet::class, 't')
+            ->andWhere($qb->expr()->eq('t.user', ':user'))
+            ->andWhere($qb->expr()->lte('t.begin', ':dayEnd'))
+            ->andWhere($qb->expr()->gte('t.begin', ':dayStart'))
+            ->setParameter('user', $user->getId())
+            ->setParameter('dayStart', $dayStart)
+            ->setParameter('dayEnd', $dayEnd)
+            ->setMaxResults(1)
+        ;
+
+        try {
+            $result = $qb->getQuery()->getOneOrNullResult();
+        } catch (\Exception $ex) {
+            return null;
+        }
+
+        return $result;
+    }
+
     /**
      * @return Query<Timesheet>
      */
