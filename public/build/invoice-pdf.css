@@ -1,0 +1,134 @@
+/*!**********************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[4].oneOf[1].use[1]!./node_modules/resolve-url-loader/index.js??ruleSet[1].rules[4].oneOf[1].use[2]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[4].oneOf[1].use[3]!./assets/sass/_invoice-pdf.scss ***!
+  \**********************************************************************************************************************************************************************************************************************************************************************************/
+/*
+ * This file is part of the Kimai time-tracking app.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+body {
+  font-family: sans-serif;
+  font-size: 10pt;
+  margin: 4px;
+  padding: 0;
+}
+
+table, tr, td, th, p, h1, h2, h3, h4, h5 {
+  padding: 0;
+  margin: 0;
+}
+
+th {
+  border: none;
+  text-align: left;
+}
+
+td {
+  vertical-align: top;
+}
+
+p {
+  margin-bottom: 12px;
+}
+
+.text-small {
+  font-size: 7pt;
+}
+
+.padding-left {
+  padding-left: 15px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left, .text-begin {
+  text-align: left;
+}
+
+.text-right, .text-end {
+  text-align: right;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.date {
+  font-size: 80%;
+  text-align: right;
+  padding-top: 6px;
+}
+
+table {
+  width: 100%;
+  border-spacing: 0;
+}
+
+table.addresses, p {
+  line-height: 14pt;
+}
+
+table.addresses {
+  margin-bottom: 30px;
+}
+
+table.header {
+  padding-bottom: 4px;
+  border-bottom: 1px solid #999;
+}
+
+table.header .title {
+  font-weight: normal;
+  font-size: 140%;
+}
+
+table.footer {
+  border-top: 1px solid #999;
+  font-size: 80%;
+  padding-top: 8px;
+  line-height: 14px;
+}
+
+table.footer td {
+  vertical-align: top;
+}
+
+table.items {
+  border-collapse: collapse;
+  margin-top: 50px;
+  margin-bottom: 60px;
+}
+
+table.items thead th, table.items tbody td {
+  border-bottom: 1px solid #ccc;
+}
+
+table.items thead th.first, table.items tbody td.first {
+  padding-left: 0;
+}
+
+table.items thead th.last, table.items tbody td.last, table.items tfoot td.last {
+  padding-right: 0;
+}
+
+table.items td, table.items th {
+  padding: 8px 6px;
+}
+
+table.items tfoot td, table.items tfoot th {
+  padding: 20px 0 0 0;
+  line-height: 1px;
+}
+
+table.items tfoot td.last {
+  padding-left: 10px;
+}
+
+table.items tr.odd {
+  background-color: #f5f5f5;
+}
+
+/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW52b2ljZS1wZGYuY3NzIiwibWFwcGluZ3MiOiI7OztBQUFBOzs7OztFQUFBO0FBT0E7RUFBTztFQUF5QjtFQUFpQjtFQUFhO0FBSTlEOztBQUhBO0VBQTJDO0VBQVk7QUFRdkQ7O0FBUEE7RUFBSztFQUFjO0FBWW5COztBQVhBO0VBQUs7QUFlTDs7QUFkQTtFQUFJO0FBa0JKOztBQWpCQTtFQUFjO0FBcUJkOztBQXBCQTtFQUFnQjtBQXdCaEI7O0FBdkJBO0VBQWU7QUEyQmY7O0FBMUJBO0VBQTBCO0FBOEIxQjs7QUE3QkE7RUFBeUI7QUFpQ3pCOztBQWhDQTtFQUFlO0FBb0NmOztBQW5DQTtFQUFRO0VBQWdCO0VBQW1CO0FBeUMzQzs7QUF4Q0E7RUFBUTtFQUFhO0FBNkNyQjs7QUE1Q0E7RUFBcUI7QUFnRHJCOztBQS9DQTtFQUFrQjtBQW1EbEI7O0FBbERBO0VBQWU7RUFBcUI7QUF1RHBDOztBQXREQTtFQUFzQjtFQUFxQjtBQTJEM0M7O0FBMURBO0VBQWU7RUFBNEI7RUFBZ0I7RUFBa0I7QUFpRTdFOztBQWhFQTtFQUFrQjtBQW9FbEI7O0FBbkVBO0VBQWM7RUFBMkI7RUFBa0I7QUF5RTNEOztBQXhFQTtFQUE2QztBQTRFN0M7O0FBM0VBO0VBQXlEO0FBK0V6RDs7QUE5RUE7RUFBa0Y7QUFrRmxGOztBQWpGQTtFQUFpQztBQXFGakM7O0FBcEZBO0VBQTZDO0VBQXFCO0FBeUZsRTs7QUF4RkE7RUFBNEI7QUE0RjVCOztBQTNGQTtFQUFxQjtBQStGckIsQyIsInNvdXJjZXMiOlsid2VicGFjazovL2tpbWFpLy4vYXNzZXRzL3Nhc3MvX2ludm9pY2UtcGRmLnNjc3MiXSwic291cmNlc0NvbnRlbnQiOlsiLypcbiAqIFRoaXMgZmlsZSBpcyBwYXJ0IG9mIHRoZSBLaW1haSB0aW1lLXRyYWNraW5nIGFwcC5cbiAqXG4gKiBGb3IgdGhlIGZ1bGwgY29weXJpZ2h0IGFuZCBsaWNlbnNlIGluZm9ybWF0aW9uLCBwbGVhc2UgdmlldyB0aGUgTElDRU5TRVxuICogZmlsZSB0aGF0IHdhcyBkaXN0cmlidXRlZCB3aXRoIHRoaXMgc291cmNlIGNvZGUuXG4gKi9cblxuYm9keSB7IGZvbnQtZmFtaWx5OiBzYW5zLXNlcmlmOyBmb250LXNpemU6IDEwcHQ7IG1hcmdpbjogNHB4OyBwYWRkaW5nOiAwOyB9XG50YWJsZSwgdHIsIHRkLCB0aCwgcCwgaDEsIGgyLCBoMywgaDQsIGg1IHsgcGFkZGluZzogMDsgbWFyZ2luOiAwO31cbnRoIHsgYm9yZGVyOiBub25lOyB0ZXh0LWFsaWduOiBsZWZ0OyB9XG50ZCB7IHZlcnRpY2FsLWFsaWduOiB0b3A7IH1cbnAgeyBtYXJnaW4tYm90dG9tOiAxMnB4OyB9XG4udGV4dC1zbWFsbCB7IGZvbnQtc2l6ZTogN3B0OyB9XG4ucGFkZGluZy1sZWZ0IHsgcGFkZGluZy1sZWZ0OiAxNXB4OyB9XG4udGV4dC1jZW50ZXIgeyB0ZXh0LWFsaWduOiBjZW50ZXI7IH1cbi50ZXh0LWxlZnQsIC50ZXh0LWJlZ2luIHsgdGV4dC1hbGlnbjogbGVmdDsgfVxuLnRleHQtcmlnaHQsIC50ZXh0LWVuZCB7IHRleHQtYWxpZ246IHJpZ2h0OyB9XG4udGV4dC1ub3dyYXAgeyB3aGl0ZS1zcGFjZTogbm93cmFwOyB9XG4uZGF0ZSB7IGZvbnQtc2l6ZTogODAlOyB0ZXh0LWFsaWduOiByaWdodDsgcGFkZGluZy10b3A6IDZweDsgfVxudGFibGUgeyB3aWR0aDogMTAwJTsgYm9yZGVyLXNwYWNpbmc6IDA7IH1cbnRhYmxlLmFkZHJlc3NlcywgcCB7IGxpbmUtaGVpZ2h0OiAxNHB0OyB9XG50YWJsZS5hZGRyZXNzZXMgeyBtYXJnaW4tYm90dG9tOiAzMHB4OyB9XG50YWJsZS5oZWFkZXIgeyBwYWRkaW5nLWJvdHRvbTogNHB4OyBib3JkZXItYm90dG9tOiAxcHggc29saWQgIzk5OTsgfVxudGFibGUuaGVhZGVyIC50aXRsZSB7IGZvbnQtd2VpZ2h0OiBub3JtYWw7IGZvbnQtc2l6ZTogMTQwJTsgfVxudGFibGUuZm9vdGVyIHsgYm9yZGVyLXRvcDogMXB4IHNvbGlkICM5OTk7IGZvbnQtc2l6ZTogODAlOyBwYWRkaW5nLXRvcDogOHB4OyBsaW5lLWhlaWdodDogMTRweDsgfVxudGFibGUuZm9vdGVyIHRkIHsgdmVydGljYWwtYWxpZ246IHRvcDsgfVxudGFibGUuaXRlbXMgeyBib3JkZXItY29sbGFwc2U6IGNvbGxhcHNlOyBtYXJnaW4tdG9wOiA1MHB4OyBtYXJnaW4tYm90dG9tOiA2MHB4OyB9XG50YWJsZS5pdGVtcyB0aGVhZCB0aCwgdGFibGUuaXRlbXMgdGJvZHkgdGQgeyBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2NjYzsgfVxudGFibGUuaXRlbXMgdGhlYWQgdGguZmlyc3QsIHRhYmxlLml0ZW1zIHRib2R5IHRkLmZpcnN0IHsgcGFkZGluZy1sZWZ0OiAwOyB9XG50YWJsZS5pdGVtcyB0aGVhZCB0aC5sYXN0LCB0YWJsZS5pdGVtcyB0Ym9keSB0ZC5sYXN0LCB0YWJsZS5pdGVtcyB0Zm9vdCB0ZC5sYXN0IHsgcGFkZGluZy1yaWdodDogMDsgfVxudGFibGUuaXRlbXMgdGQsIHRhYmxlLml0ZW1zIHRoIHsgcGFkZGluZzogOHB4IDZweDsgfVxudGFibGUuaXRlbXMgdGZvb3QgdGQsIHRhYmxlLml0ZW1zIHRmb290IHRoIHsgcGFkZGluZzogMjBweCAwIDAgMDsgbGluZS1oZWlnaHQ6IDFweDsgfVxudGFibGUuaXRlbXMgdGZvb3QgdGQubGFzdCB7IHBhZGRpbmctbGVmdDogMTBweDsgfVxudGFibGUuaXRlbXMgdHIub2RkIHsgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjVmNTsgfVxuIl0sIm5hbWVzIjpbXSwic291cmNlUm9vdCI6IiJ9*/

@@ -138,18 +138,11 @@
         {% else %}
             {{ entry.internalRate|money(departmentCurrency) }}
         {% endif %}
-    {% elseif column == 'status' %}
-        {% set taskData = entry.description|json_decode %}
-        {% if taskData is iterable %}
-            {% for taskItem in taskData %}
-                {{ taskItem.status }}{% if not loop.last %}<br>{% endif %}
-            {% endfor %}
-        {% endif %}
     {% elseif column == 'task' %}
         {% set taskData = entry.description|json_decode %}
         {% if taskData is iterable %}
             {% for taskItem in taskData %}
-                {{ taskItem.task }}{% if not loop.last %}<br>{% endif %}
+                {{ loop.index }}. {{ taskItem.task }}{% if taskItem.status is defined and taskItem.status %} ({% if taskItem.status|lower == 'completed' %}<span style="color:green">{{ taskItem.status }}</span>{% elseif taskItem.status|lower == 'in progress' %}<span style="color:blue">{{ taskItem.status }}</span>{% elseif taskItem.status|lower == 'pending' %}<span style="color:orange">{{ taskItem.status }}</span>{% else %}{{ taskItem.status }}{% endif %}){% endif %}{% if not loop.last %}<br>{% endif %}
             {% endfor %}
         {% else %}
             {{ entry.description|nl2br }}

@@ -354,7 +354,15 @@ export default class KimaiCalendar {
                         return;
                     }
 
-                    const createUrl = this.options.url.create(dateClickInfo.dateStr);
+                    let begin = dateClickInfo.date;
+                    let defaultStartTime = this.options.defaultStartTime;
+                    if (defaultStartTime === null) {
+                        const now = new Date();
+                        defaultStartTime = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+                    }
+                    begin = DATES.addHumanDuration(begin, defaultStartTime);
+
+                    const createUrl = this.options.url.create(DATES.formatForAPI(begin));
                     MODAL.openUrlInModal(createUrl);
                 },
                 selectable: true,

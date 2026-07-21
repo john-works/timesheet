@@ -89,7 +89,6 @@ abstract class TimesheetAbstractController extends AbstractController
 
         $table->addColumn('duration', ['class' => 'text-end text-nowrap']);
         $table->addColumn('task', ['class' => 'd-none d-md-table-cell', 'title' => 'task']);
-        $table->addColumn('status', ['class' => 'd-none d-md-table-cell']);
         $table->addColumn('activity', ['class' => 'd-none d-xl-table-cell']);
 
         if ($canSeeRate) {

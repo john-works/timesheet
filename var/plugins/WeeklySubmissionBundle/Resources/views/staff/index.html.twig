@@ -119,7 +119,13 @@
                 {% endif %}
                 {% if not canSubmit %}
                     <div class="alert alert-info">
-                        <i class="fas fa-clock"></i> Weekly timesheets can only be submitted on <strong>Friday at 8:00 AM or later</strong>.
+                        <i class="fas fa-clock"></i>
+                        {% set currentWeekStart = weekStart|date_modify('monday this week')|date('Y-m-d') %}
+                        {% if weekStart|date('Y-m-d') == currentWeekStart %}
+                            Weekly timesheets can only be submitted on <strong>Tuesday at 8:00 AM or later</strong>.
+                        {% else %}
+                            Previous week timesheets can only be submitted on <strong>Friday at 8:00 AM or later</strong>.
+                        {% endif %}
                     </div>
                 {% elseif submission.isDraft %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">

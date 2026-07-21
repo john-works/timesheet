@@ -1,0 +1,78 @@
+/*!*********************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[4].oneOf[1].use[1]!./node_modules/resolve-url-loader/index.js??ruleSet[1].rules[4].oneOf[1].use[2]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[4].oneOf[1].use[3]!./assets/sass/_export-pdf.scss ***!
+  \*********************************************************************************************************************************************************************************************************************************************************************************/
+/*
+ * This file is part of the Kimai time-tracking app.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+body {
+  font-family: sans-serif;
+  font-size: 10pt;
+  margin: 0;
+  padding: 0;
+}
+
+p {
+  margin: 0;
+}
+
+table.items {
+  border: 0.1mm solid #000000;
+  width: 100%;
+  font-size: 9pt;
+  border-collapse: collapse;
+}
+
+td, th {
+  padding: 7px;
+}
+
+td {
+  vertical-align: top;
+}
+
+.items td {
+  border-left: 0.1mm solid #000000;
+  border-right: 0.1mm solid #000000;
+}
+
+.items tr.even {
+  background-color: #f5f5f5;
+}
+
+.items tr.summary {
+  background-color: #efefef;
+}
+
+.items tr.summary td {
+  font-weight: bold;
+  border-top: 0.1mm solid #000000;
+  border-bottom: 0.1mm solid #000000;
+}
+
+table thead th {
+  background-color: #ececec;
+  border: 0.1mm solid #000000;
+  font-weight: bold;
+  font-size: 10pt;
+  text-align: left;
+}
+
+.items td.totals {
+  font-weight: bold;
+  border: 0.1mm solid #000000;
+}
+
+.items .center,
+.items td.duration,
+.items td.cost {
+  text-align: center;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXhwb3J0LXBkZi5jc3MiLCJtYXBwaW5ncyI6Ijs7O0FBQUE7Ozs7O0VBQUE7QUFPQTtFQUNJO0VBQ0E7RUFDQTtFQUNBO0FBQUo7O0FBRUE7RUFDSTtBQUNKOztBQUNBO0VBQ0k7RUFDQTtFQUNBO0VBQ0E7QUFFSjs7QUFBQTtFQUNJO0FBR0o7O0FBREE7RUFDSTtBQUlKOztBQUZBO0VBQ0k7RUFDQTtBQUtKOztBQUhBO0VBQ0k7QUFNSjs7QUFKQTtFQUNJO0FBT0o7O0FBTEE7RUFDSTtFQUNBO0VBQ0E7QUFRSjs7QUFOQTtFQUNJO0VBQ0E7RUFDQTtFQUNBO0VBQ0E7QUFTSjs7QUFQQTtFQUNJO0VBQ0E7QUFVSjs7QUFSQTs7O0VBR0k7QUFXSjs7QUFUQTtFQUNJO0FBWUosQyIsInNvdXJjZXMiOlsid2VicGFjazovL2tpbWFpLy4vYXNzZXRzL3Nhc3MvX2V4cG9ydC1wZGYuc2NzcyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKlxuICogVGhpcyBmaWxlIGlzIHBhcnQgb2YgdGhlIEtpbWFpIHRpbWUtdHJhY2tpbmcgYXBwLlxuICpcbiAqIEZvciB0aGUgZnVsbCBjb3B5cmlnaHQgYW5kIGxpY2Vuc2UgaW5mb3JtYXRpb24sIHBsZWFzZSB2aWV3IHRoZSBMSUNFTlNFXG4gKiBmaWxlIHRoYXQgd2FzIGRpc3RyaWJ1dGVkIHdpdGggdGhpcyBzb3VyY2UgY29kZS5cbiAqL1xuXG5ib2R5IHtcbiAgICBmb250LWZhbWlseTogc2Fucy1zZXJpZjtcbiAgICBmb250LXNpemU6IDEwcHQ7XG4gICAgbWFyZ2luOiAwO1xuICAgIHBhZGRpbmc6IDA7XG59XG5wIHtcbiAgICBtYXJnaW46IDA7XG59XG50YWJsZS5pdGVtcyB7XG4gICAgYm9yZGVyOiAwLjFtbSBzb2xpZCAjMDAwMDAwO1xuICAgIHdpZHRoOiAxMDAlO1xuICAgIGZvbnQtc2l6ZTogOXB0O1xuICAgIGJvcmRlci1jb2xsYXBzZTogY29sbGFwc2U7XG59XG50ZCwgdGgge1xuICAgIHBhZGRpbmc6IDdweDtcbn1cbnRkIHtcbiAgICB2ZXJ0aWNhbC1hbGlnbjogdG9wO1xufVxuLml0ZW1zIHRkIHtcbiAgICBib3JkZXItbGVmdDogMC4xbW0gc29saWQgIzAwMDAwMDtcbiAgICBib3JkZXItcmlnaHQ6IDAuMW1tIHNvbGlkICMwMDAwMDA7XG59XG4uaXRlbXMgdHIuZXZlbiB7XG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjVmNTtcbn1cbi5pdGVtcyB0ci5zdW1tYXJ5IHtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZWZlZmVmO1xufVxuLml0ZW1zIHRyLnN1bW1hcnkgdGQge1xuICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xuICAgIGJvcmRlci10b3A6IDAuMW1tIHNvbGlkICMwMDAwMDA7XG4gICAgYm9yZGVyLWJvdHRvbTogMC4xbW0gc29saWQgIzAwMDAwMDtcbn1cbnRhYmxlIHRoZWFkIHRoIHtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZWNlY2VjO1xuICAgIGJvcmRlcjogMC4xbW0gc29saWQgIzAwMDAwMDtcbiAgICBmb250LXdlaWdodDogYm9sZDtcbiAgICBmb250LXNpemU6IDEwcHQ7XG4gICAgdGV4dC1hbGlnbjogbGVmdDtcbn1cbi5pdGVtcyB0ZC50b3RhbHMge1xuICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xuICAgIGJvcmRlcjogMC4xbW0gc29saWQgIzAwMDAwMDtcbn1cbi5pdGVtcyAuY2VudGVyLFxuLml0ZW1zIHRkLmR1cmF0aW9uLFxuLml0ZW1zIHRkLmNvc3Qge1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbn1cbi50ZXh0LW5vd3JhcCB7XG4gICAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbn1cbiJdLCJuYW1lcyI6W10sInNvdXJjZVJvb3QiOiIifQ==*/

@@ -80,10 +80,21 @@ final class StaffController extends AbstractController
 
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
         $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
-
-        // Weekly submissions can only be submitted on Friday at 8:00 AM or later
         $hour = (int) $now->format('G');
-        $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
+
+        $currentWeekStart = $this->getCurrentWeekStart();
+        $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
+        $isPreviousWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->modify('-7 days')->format('Y-m-d'));
+
+        // Current week: Tuesday at 8:00 AM or later
+        // Previous week (if not yet submitted): Friday at 8:00 AM or later
+        if ($isCurrentWeek) {
+            $canSubmit = ($dayOfWeek === 2 && $hour >= 8);
+        } elseif ($isPreviousWeek && $submission->isDraft()) {
+            $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
+        } else {
+            $canSubmit = false;
+        }
 
         $deptUserIds = $this->repository->getDepartmentUserIds($user);
         $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
@@ -131,12 +142,28 @@ final class StaffController extends AbstractController
             return $this->redirectToRoute('weekly_submission_staff');
         }
 
-        // Weekly submissions can only be submitted on Friday at 8:00 AM or later
+        // Current week: Tuesday at 8:00 AM or later
+        // Previous week (if not yet submitted): Friday at 8:00 AM or later
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
         $dayOfWeek = (int) $now->format('N');
         $hour = (int) $now->format('G');
-        if ($dayOfWeek !== 5 || $hour < 8) {
-            $this->addFlash('error', 'Weekly timesheets can only be submitted on Friday at 8:00 AM or later.');
+        $currentWeekStart = $this->getCurrentWeekStart();
+        $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
+        $isPreviousWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->modify('-7 days')->format('Y-m-d'));
+
+        if ($isCurrentWeek) {
+            $allowed = ($dayOfWeek === 2 && $hour >= 8);
+            $timeMessage = 'Tuesday at 8:00 AM or later';
+        } elseif ($isPreviousWeek && $submission->isDraft()) {
+            $allowed = ($dayOfWeek === 5 && $hour >= 8);
+            $timeMessage = 'Friday at 8:00 AM or later (for previous week)';
+        } else {
+            $allowed = false;
+            $timeMessage = 'Tuesday at 8:00 AM or later';
+        }
+
+        if (!$allowed) {
+            $this->addFlash('error', 'Weekly timesheets can only be submitted on ' . $timeMessage . '.');
             return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
         }
 

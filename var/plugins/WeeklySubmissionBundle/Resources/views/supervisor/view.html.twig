@@ -74,7 +74,16 @@
                                         <span class="badge bg-info">On Leave</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ entry.description ?: '-' }}</td>
+                                <td>
+                                    {% set taskData = entry.description|json_decode %}
+                                    {% if taskData is iterable %}
+                                        {% for taskItem in taskData %}
+                                            {{ loop.index }}. {{ taskItem.task }}{% if taskItem.status is defined and taskItem.status %} ({% if taskItem.status|lower == 'completed' %}<span style="color:green">{{ taskItem.status }}</span>{% elseif taskItem.status|lower == 'in progress' %}<span style="color:blue">{{ taskItem.status }}</span>{% elseif taskItem.status|lower == 'pending' %}<span style="color:orange">{{ taskItem.status }}</span>{% else %}{{ taskItem.status }}{% endif %}){% endif %}{% if not loop.last %}<br>{% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ entry.description|nl2br }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ entry.begin|date('h:i A') }}</td>
                                 <td>{{ entry.end ? entry.end|date('h:i A') : '-' }}</td>
                             </tr>
