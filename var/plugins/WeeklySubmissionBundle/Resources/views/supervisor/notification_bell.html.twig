@@ -9,7 +9,7 @@
     <a id="notification-link" href="{{ target }}" class="btn btn-default btn-icon px-sm-2" title="Notifications">
         <i id="notification-icon" class="fas fa-bell {{ hasNotifs ? 'text-danger' : 'text-muted' }}" style="font-size:1.1rem{{ hasNotifs ? ';animation:bell-pulse 1s ease-in-out infinite alternate' : '' }}"></i>
         {% if hasNotifs %}
-        <span id="notification-count" class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill" style="display:inline">{{ count }}</span>
+        <span id="notification-count" class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill" style="display:inline; color: #fff !important;">{{ count }}</span>
         {% endif %}
     </a>
 </div>

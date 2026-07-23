@@ -5,12 +5,14 @@ namespace App\Controller;
 use App\Entity\Timesheet;
 use App\Repository\ActivityRepository;
 use App\Repository\ProjectRepository;
-use App\Timesheet\TimesheetService;
+use App\Repository\TimesheetRepository;
 use App\Utils\PageSetup;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+use Doctrine\ORM\EntityManagerInterface;
 
 #[Route(path: '/leave')]
 #[IsGranted('create_own_timesheet')]
@@ -19,7 +21,8 @@ final class LeaveController extends AbstractController
     public function __construct(
         private readonly ActivityRepository $activityRepository,
         private readonly ProjectRepository $projectRepository,
-        private readonly TimesheetService $timesheetService,
+        private readonly TimesheetRepository $timesheetRepository,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -54,10 +57,8 @@ final class LeaveController extends AbstractController
             return $this->redirectToRoute('leave');
         }
 
-        $start = new \DateTime($leaveStart);
-        $end = (new \DateTime($leaveEnd))->modify('+1 day');
-        $interval = new \DateInterval('P1D');
-        $period = new \DatePeriod($start, $interval, $end);
+        $user = $this->getUser();
+        $userTz = new \DateTimeZone($user->getTimezone());
 
         $leaveActivity = $this->activityRepository->findOneBy(['name' => 'Leave']);
         if (!$leaveActivity) {
@@ -71,42 +72,79 @@ final class LeaveController extends AbstractController
             return $this->redirectToRoute('leave');
         }
 
-        $user = $this->getUser();
         $created = 0;
+        $skipped = 0;
+        $isWithoutPay = stripos($leaveType, 'Without Pay') !== false;
 
-        foreach ($period as $date) {
-            if ($date->format('N') > 5) {
+        $startDate = new \DateTime($leaveStart, $userTz);
+        $endDate = new \DateTime($leaveEnd, $userTz);
+
+        $current = clone $startDate;
+        while ($current <= $endDate) {
+            $dow = (int) $current->format('N');
+            if ($dow > 5) {
+                $current->modify('+1 day');
                 continue;
             }
 
-            $isWithoutPay = stripos($leaveType, 'Without Pay') !== false;
+            $dateStr = $current->format('Y-m-d');
+
+            $existing = $this->timesheetRepository->createQueryBuilder('t')
+                ->select('COUNT(t.id)')
+                ->where('t.user = :user')
+                ->andWhere('t.activity = :activity')
+                ->andWhere('DATE(t.begin) = :dateStr')
+                ->setParameter('user', $user)
+                ->setParameter('activity', $leaveActivity)
+                ->setParameter('dateStr', $dateStr)
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            if ((int) $existing > 0) {
+                $skipped++;
+                $current->modify('+1 day');
+                continue;
+            }
+
+            if ($isWithoutPay) {
+                $begin = new \DateTime($dateStr . ' 00:00:00', $userTz);
+                $finish = new \DateTime($dateStr . ' 00:00:00', $userTz);
+            } else {
+                $begin = new \DateTime($dateStr . ' 08:00:00', $userTz);
+                $finish = new \DateTime($dateStr . ' 17:00:00', $userTz);
+            }
 
             $entry = new Timesheet();
             $entry->setUser($user);
             $entry->setActivity($leaveActivity);
             $entry->setProject($project);
             $entry->setDescription($leaveType);
-
+            $entry->setTimezone($user->getTimezone());
+            $entry->setBegin($begin);
+            $entry->setEnd($finish);
             if ($isWithoutPay) {
-                $entry->setBegin((clone $date)->setTime(0, 0));
-                $entry->setEnd((clone $date)->setTime(0, 0));
                 $entry->setDuration(0);
             } else {
-                $entry->setBegin((clone $date)->setTime(8, 0));
-                $entry->setEnd((clone $date)->setTime(17, 0));
                 $entry->setDuration(28800);
             }
 
             try {
-                $this->timesheetService->saveTimesheet($entry);
+                $this->entityManager->persist($entry);
+                $this->entityManager->flush();
                 $created++;
             } catch (\Exception $ex) {
-                $this->flashUpdateException($ex);
+                $this->addFlash('error', 'Failed to create leave entry for ' . $dateStr . ': ' . $ex->getMessage());
             }
+
+            $current->modify('+1 day');
         }
 
-        $this->addFlash('success', sprintf('Created %d leave entry/entries.', $created));
+        $message = sprintf('Created %d leave entry/entries.', $created);
+        if ($skipped > 0) {
+            $message .= sprintf(' %d day(s) skipped (already exist).', $skipped);
+        }
+        $this->addFlash('success', $message);
 
-        return $this->redirectToRoute('leave');
+        return $this->redirectToRoute('timesheet');
     }
 }

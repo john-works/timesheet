@@ -37,8 +37,10 @@ final class StaffController extends AbstractController
 
     #[Route('/my-weekly', name: 'weekly_submission_staff', methods: ['GET'])]
     #[Route('/my-weekly/{id}', name: 'weekly_submission_staff_week', methods: ['GET'])]
-    public function index(#[CurrentUser] User $user, ?int $id = null): Response
+    public function index(#[CurrentUser] User $user, Request $request, ?int $id = null): Response
     {
+        $currentWeekStart = $this->getCurrentWeekStart();
+
         if ($id !== null) {
             $submission = $this->repository->find($id);
             if ($submission === null || $submission->getUser()->getId() !== $user->getId()) {
@@ -50,7 +52,18 @@ final class StaffController extends AbstractController
             }
             $weekStart = $submission->getWeekStart();
         } else {
-            $weekStart = $this->getCurrentWeekStart();
+            $weekParam = $request->query->get('week');
+            if ($weekParam !== null && $weekParam !== '') {
+                $weekStart = \DateTimeImmutable::createFromFormat('Y-m-d', $weekParam);
+                if ($weekStart === false) {
+                    $weekStart = $currentWeekStart;
+                } else {
+                    $dayOfWeek = (int) $weekStart->format('N');
+                    $weekStart = $weekStart->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
+                }
+            } else {
+                $weekStart = $currentWeekStart;
+            }
             $submission = $this->repository->findForUserAndWeek($user, $weekStart);
         }
 
@@ -61,10 +74,14 @@ final class StaffController extends AbstractController
         $totalDuration = $this->calculateWeekDuration($user, $weekStart);
         $submission->setTotalDuration($totalDuration);
 
+        $currentWeekDuration = ($weekStart->format('Y-m-d') !== $currentWeekStart->format('Y-m-d'))
+            ? $this->calculateWeekDuration($user, $currentWeekStart)
+            : $totalDuration;
+
         $history = $this->repository->findHistoryForUser($user);
 
         // Count existing leave entries for this week
-        $weekEnd = $weekStart->modify('+7 days');
+        $weekEnd = $weekStart->modify('+4 days');
         $query = new TimesheetQuery();
         $query->setCurrentUser($user);
         $query->setBegin($weekStart);
@@ -82,24 +99,20 @@ final class StaffController extends AbstractController
         $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
         $hour = (int) $now->format('G');
 
-        $currentWeekStart = $this->getCurrentWeekStart();
         $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
-        $isPreviousWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->modify('-7 days')->format('Y-m-d'));
 
-        // Current week: Tuesday at 8:00 AM or later
-        // Previous week (if not yet submitted): Friday at 8:00 AM or later
-        if ($isCurrentWeek) {
-            $canSubmit = ($dayOfWeek === 2 && $hour >= 8);
-        } elseif ($isPreviousWeek && $submission->isDraft()) {
-            $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
-        } else {
-            $canSubmit = false;
-        }
+        $canSubmit = true;
+
+        $prevWeek = $weekStart->modify('-7 days')->format('Y-m-d');
+        $nextWeek = $isCurrentWeek ? null : $weekStart->modify('+7 days')->format('Y-m-d');
 
         $deptUserIds = $this->repository->getDepartmentUserIds($user);
         $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
         $departmentUsers = array_filter($departmentUsers, fn($u) => $u->getId() !== $user->getId());
         $departmentUsers = array_values($departmentUsers);
+
+        $unsubmittedWeeks = $this->findUnsubmittedPreviousWeeks($user, $currentWeekStart);
+        $rejectedWeeks = $this->repository->findRejectedForUser($user);
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
@@ -111,6 +124,13 @@ final class StaffController extends AbstractController
             'leaveDays' => $leaveDays,
             'canSubmit' => $canSubmit,
             'departmentUsers' => $departmentUsers,
+            'prevWeek' => $prevWeek,
+            'nextWeek' => $nextWeek,
+            'unsubmittedWeeks' => $unsubmittedWeeks,
+            'rejectedWeeks' => $rejectedWeeks,
+            'currentWeekStart' => $currentWeekStart,
+            'currentWeekDuration' => $currentWeekDuration,
+            'managerHrUser' => $this->repository->getManagerHrUser(),
         ]);
     }
 
@@ -129,7 +149,18 @@ final class StaffController extends AbstractController
             }
             $weekStart = $submission->getWeekStart();
         } else {
-            $weekStart = $this->getCurrentWeekStart();
+            $weekParam = $request->request->get('week');
+            if ($weekParam !== null && $weekParam !== '') {
+                $weekStart = \DateTimeImmutable::createFromFormat('Y-m-d', $weekParam);
+                if ($weekStart !== false) {
+                    $dayOfWeek = (int) $weekStart->format('N');
+                    $weekStart = $weekStart->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
+                } else {
+                    $weekStart = $this->getCurrentWeekStart();
+                }
+            } else {
+                $weekStart = $this->getCurrentWeekStart();
+            }
             $submission = $this->repository->findForUserAndWeek($user, $weekStart);
         }
 
@@ -137,37 +168,18 @@ final class StaffController extends AbstractController
             $submission = new WeeklySubmission($user, $weekStart);
         }
 
+        $currentWeekStart = $this->getCurrentWeekStart();
+        $isViewingNonCurrentWeek = ($weekStart->format('Y-m-d') !== $currentWeekStart->format('Y-m-d'));
+        $redirectParams = $id !== null ? ['id' => $id] : ($isViewingNonCurrentWeek ? ['week' => $weekStart->format('Y-m-d')] : []);
+
         if (!$submission->isDraft() && !$submission->isRejected()) {
             $this->addFlash('error', 'This week has already been submitted.');
-            return $this->redirectToRoute('weekly_submission_staff');
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
-        // Current week: Tuesday at 8:00 AM or later
-        // Previous week (if not yet submitted): Friday at 8:00 AM or later
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
-        $dayOfWeek = (int) $now->format('N');
-        $hour = (int) $now->format('G');
-        $currentWeekStart = $this->getCurrentWeekStart();
-        $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
-        $isPreviousWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->modify('-7 days')->format('Y-m-d'));
 
-        if ($isCurrentWeek) {
-            $allowed = ($dayOfWeek === 2 && $hour >= 8);
-            $timeMessage = 'Tuesday at 8:00 AM or later';
-        } elseif ($isPreviousWeek && $submission->isDraft()) {
-            $allowed = ($dayOfWeek === 5 && $hour >= 8);
-            $timeMessage = 'Friday at 8:00 AM or later (for previous week)';
-        } else {
-            $allowed = false;
-            $timeMessage = 'Tuesday at 8:00 AM or later';
-        }
-
-        if (!$allowed) {
-            $this->addFlash('error', 'Weekly timesheets can only be submitted on ' . $timeMessage . '.');
-            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
-        }
-
-        $weekEnd = $weekStart->modify('+7 days');
+        $weekEnd = $weekStart->modify('+4 days');
         $query = new TimesheetQuery();
         $query->setCurrentUser($user);
         $query->setBegin($weekStart);
@@ -189,7 +201,7 @@ final class StaffController extends AbstractController
 
         if ($hasWeekend) {
             $this->addFlash('error', 'Weekend timesheets are not allowed. Please remove entries on Saturday/Sunday before submitting.');
-            return $this->redirectToRoute('weekly_submission_staff');
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
         $holidays = $this->holidayRepository->findBetween($weekStart, $weekStart->modify('+4 days'));
@@ -223,13 +235,13 @@ final class StaffController extends AbstractController
 
         if (empty($timesheets)) {
             $this->addFlash('error', 'You cannot submit an empty timesheet. Please create at least one timesheet entry first.');
-            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
         $totalDuration = $this->calculateWeekDuration($user, $weekStart);
         if ($totalDuration <= 0 && count($coveredDays) === 0) {
             $this->addFlash('error', 'You cannot submit an empty timesheet. All entries must have a duration greater than zero.');
-            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
         // Check for overtime (more than 40 hours per week)
@@ -251,7 +263,7 @@ final class StaffController extends AbstractController
 
         if ($user->getSupervisor() === null) {
             $this->addFlash('error', 'You must select a supervisor before submitting.');
-            return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
         $submission->setTotalDuration($totalDuration);
@@ -282,7 +294,7 @@ final class StaffController extends AbstractController
         }
 
         $this->addFlash('success', 'Weekly timesheet submitted successfully.');
-        return $this->redirectToRoute('weekly_submission_staff', $id !== null ? ['id' => $id] : []);
+        return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
     }
 
     private function buildHolidayEntry(User $user, \DateTimeImmutable $date, string $holidayName): ?Timesheet
@@ -320,7 +332,7 @@ final class StaffController extends AbstractController
 
     private function calculateWeekDuration(User $user, \DateTimeImmutable $weekStart): int
     {
-        $weekEnd = $weekStart->modify('+7 days');
+        $weekEnd = $weekStart->modify('+4 days');
 
         $query = new TimesheetQuery();
         $query->setCurrentUser($user);
@@ -335,5 +347,207 @@ final class StaffController extends AbstractController
         }
 
         return $total;
+    }
+
+    private function findUnsubmittedPreviousWeeks(User $user, \DateTimeImmutable $currentWeekStart): array
+    {
+        $eightWeeksAgo = $currentWeekStart->modify('-56 days');
+        $submittedWeeks = $this->repository->findSubmittedWeekStartsForUser($user, $eightWeeksAgo, $currentWeekStart);
+
+        $submittedDates = [];
+        foreach ($submittedWeeks as $sw) {
+            $submittedDates[$sw->getWeekStart()->format('Y-m-d')] = true;
+        }
+
+        $conn = $this->entityManager->getConnection();
+        $durations = $conn->fetchAllAssociative(
+            'SELECT DATE(t.start_time) AS day, SUM(t.duration) AS dur
+             FROM kimai2_timesheet t
+             WHERE t.user = :userId
+               AND t.start_time >= :fromDate
+               AND t.start_time < :toDate
+               AND t.end_time IS NOT NULL
+             GROUP BY DATE(t.start_time)',
+            [
+                'userId' => $user->getId(),
+                'fromDate' => $eightWeeksAgo->format('Y-m-d'),
+                'toDate' => $currentWeekStart->format('Y-m-d'),
+            ]
+        );
+
+        $dayDurations = [];
+        if ($durations) {
+            foreach ($durations as $row) {
+                $dayKey = substr($row['day'], 0, 10);
+                $dayDurations[$dayKey] = (int) $row['dur'];
+            }
+        }
+
+        $unsubmittedWeeks = [];
+        $checkWeek = $currentWeekStart->modify('-7 days');
+
+        for ($i = 0; $i < 8; $i++) {
+            $dateKey = $checkWeek->format('Y-m-d');
+            if (!isset($submittedDates[$dateKey])) {
+                $weekDuration = 0;
+                for ($d = 0; $d < 5; $d++) {
+                    $dayKey = $checkWeek->modify("+$d days")->format('Y-m-d');
+                    $weekDuration += $dayDurations[$dayKey] ?? 0;
+                }
+                if ($weekDuration > 0) {
+                    $unsubmittedWeeks[] = [
+                        'weekStart' => $checkWeek,
+                        'weekEnd' => $checkWeek->modify('+4 days'),
+                        'duration' => $weekDuration,
+                    ];
+                }
+            }
+            $checkWeek = $checkWeek->modify('-7 days');
+        }
+
+        return $unsubmittedWeeks;
+    }
+
+    #[Route('/my-weekly/batch-submit', name: 'weekly_submission_staff_batch_submit', methods: ['POST'])]
+    public function batchSubmit(#[CurrentUser] User $user, Request $request): Response
+    {
+        $weeks = $request->request->all('weeks');
+        if (empty($weeks) || !is_array($weeks)) {
+            $this->addFlash('error', 'No weeks selected for submission.');
+            return $this->redirectToRoute('weekly_submission_staff');
+        }
+
+        $weeks = array_values(array_unique($weeks));
+
+        $submittedCount = 0;
+        $errors = [];
+
+        foreach ($weeks as $weekDate) {
+            $weekStart = \DateTimeImmutable::createFromFormat('Y-m-d', $weekDate);
+            if ($weekStart === false) {
+                continue;
+            }
+
+            $dayOfWeek = (int) $weekStart->format('N');
+            $weekStart = $weekStart->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
+
+            $submission = $this->repository->findForUserAndWeek($user, $weekStart);
+            if ($submission === null) {
+                $submission = new WeeklySubmission($user, $weekStart);
+            }
+
+            if (!$submission->isDraft() && !$submission->isRejected()) {
+                continue;
+            }
+
+            $weekEnd = $weekStart->modify('+4 days');
+            $query = new TimesheetQuery();
+            $query->setCurrentUser($user);
+            $query->setBegin($weekStart);
+            $query->setEnd($weekEnd);
+            $query->setUser($user);
+
+            $timesheets = $this->timesheetRepository->getTimesheetsForQuery($query);
+
+            $coveredDays = [];
+            $hasWeekend = false;
+            foreach ($timesheets as $ts) {
+                $dow = (int) $ts->getBegin()->format('N');
+                if ($dow >= 6) {
+                    $hasWeekend = true;
+                } else {
+                    $coveredDays[$dow] = true;
+                }
+            }
+
+            if ($hasWeekend) {
+                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': Weekend timesheets not allowed';
+                continue;
+            }
+
+            if (empty($timesheets)) {
+                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': No timesheet entries';
+                continue;
+            }
+
+            $holidays = $this->holidayRepository->findBetween($weekStart, $weekEnd);
+
+            foreach ($holidays as $holiday) {
+                $date = $holiday->getHolidayDate();
+                $dow = (int) $date->format('N');
+                $dateKey = $date->format('Y-m-d');
+
+                if ($dow > 5) {
+                    continue;
+                }
+
+                foreach ($timesheets as $key => $ts) {
+                    if ($ts->getBegin()->format('Y-m-d') === $dateKey
+                        && $ts->getActivity() !== null
+                        && stripos($ts->getActivity()->getName(), 'leave') !== false
+                    ) {
+                        $this->entityManager->remove($ts);
+                        unset($timesheets[$key]);
+                    }
+                }
+
+                $entry = $this->buildHolidayEntry($user, $date, $holiday->getName());
+                if ($entry !== null) {
+                    $this->entityManager->persist($entry);
+                    $coveredDays[$dow] = true;
+                }
+            }
+
+            $totalDuration = $this->calculateWeekDuration($user, $weekStart);
+            if ($totalDuration <= 0 && count($coveredDays) === 0) {
+                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': Empty timesheet';
+                continue;
+            }
+
+            $overtimeThreshold = 40 * 3600;
+            $isOvertime = $totalDuration > $overtimeThreshold;
+            $overtimeHours = $isOvertime ? (int) (($totalDuration - $overtimeThreshold) / 3600) : 0;
+
+            $submission->setTotalDuration($totalDuration);
+            $submission->setIsOvertime($isOvertime);
+            $submission->setOvertimeHours($overtimeHours);
+            $submission->setStatus(WeeklySubmission::STATUS_SUBMITTED);
+            $submission->setSubmittedAt(new \DateTimeImmutable());
+            $submission->setApprovedBy(null);
+            $submission->setApprovedAt(null);
+            $submission->setSupervisorNotes(null);
+            $submission->setManagerApprovedBy(null);
+            $submission->setManagerApprovedAt(null);
+            $submission->setManagerNotes(null);
+            $submission->setHrApprovedBy(null);
+            $submission->setHrApprovedAt(null);
+            $submission->setHrNotes(null);
+
+            $this->entityManager->persist($submission);
+            $submittedCount++;
+        }
+
+        $this->entityManager->flush();
+
+        $supervisor = $user->getSupervisor();
+        if ($supervisor !== null && $submittedCount > 0) {
+            try {
+                $this->mailer->sendBatchSubmittedNotification($user, $submittedCount, $supervisor);
+            } catch (\Exception $e) {
+                // email sending is best-effort
+            }
+        }
+
+        if ($submittedCount > 0) {
+            $this->addFlash('success', sprintf('%d week(s) submitted successfully.', $submittedCount));
+        }
+
+        if (!empty($errors)) {
+            foreach ($errors as $error) {
+                $this->addFlash('warning', $error);
+            }
+        }
+
+        return $this->redirectToRoute('weekly_submission_staff');
     }
 }

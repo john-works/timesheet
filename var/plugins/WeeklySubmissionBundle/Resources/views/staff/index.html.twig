@@ -2,13 +2,64 @@
 {% import "macros/widgets.html.twig" as widgets %}
 
 {% block main %}
+{% if unsubmittedWeeks|length > 0 %}
+<div class="row">
+    <div class="col-12">
+        <div class="card card-warning card-outline">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i> Missed Weekly Submissions
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">You have <strong>{{ unsubmittedWeeks|length }}</strong> unsubmitted week(s). They will be submitted together with the current week.</p>
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th>Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for uw in unsubmittedWeeks %}
+                            <tr>
+                                <td>{{ uw.weekStart|date('d/m/Y') }} - {{ uw.weekEnd|date('d/m/Y') }}</td>
+                                <td>
+                                    {% set hours = (uw.duration / 3600)|number_format(2) %}
+                                    {{ hours }}h
+                                    {% if uw.duration > 40 * 3600 %}
+                                        <span class="badge bg-warning" style="color: #fff !important;">OT</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">My Weekly Timesheet</h3>
                 <div class="card-tools">
-                    <strong>{{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}</strong>
+                    <a href="{{ path('weekly_submission_staff', {week: prevWeek}) }}" class="btn btn-sm btn-outline-secondary" title="Previous Week">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <strong class="mx-2">{{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}</strong>
+                    {% if nextWeek %}
+                        <a href="{{ path('weekly_submission_staff', {week: nextWeek}) }}" class="btn btn-sm btn-outline-secondary" title="Next Week">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="btn btn-sm btn-outline-secondary disabled" title="Current Week (latest)">
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                    {% endif %}
                     {% if app.request.get('id') is not null %}
                         <a href="{{ path('weekly_submission_staff') }}" class="btn btn-sm btn-outline-primary ms-2">
                             <i class="fas fa-arrow-left"></i> Current Week
@@ -23,18 +74,18 @@
                         {% if submission.isDraft %}
                             <span class="badge bg-secondary" style="color:#fff !important;">Draft</span>
                         {% elseif submission.isSubmitted %}
-                            <span class="badge bg-primary">Submitted</span>
+                            <span class="badge bg-primary" style="color: #fff !important;">Submitted</span>
                         {% elseif submission.isSupervisorApproved %}
-                            <span class="badge bg-info">Supervisor Approved</span>
+                            <span class="badge bg-info" style="color: #fff !important;">Supervisor Approved</span>
                         {% elseif submission.isManagerApproved %}
-                            <span class="badge bg-warning text-dark">Manager Approved - Pending HR</span>
+                            <span class="badge bg-warning" style="color: #fff !important;">Manager Approved - Pending HR</span>
                         {% elseif submission.isApproved %}
-                            <span class="badge bg-success">Approved</span>
+                            <span class="badge bg-success" style="color: #fff !important;">Approved</span>
                         {% elseif submission.isRejected %}
-                            <span class="badge bg-danger">Rejected</span>
+                            <span class="badge bg-danger" style="color: #fff !important;">Rejected</span>
                         {% endif %}
                         {% if submission.isOvertime %}
-                            <span class="badge bg-warning text-dark">Overtime</span>
+                            <span class="badge bg-warning" style="color: #fff !important;">Overtime</span>
                         {% endif %}
                     </div>
 
@@ -52,13 +103,6 @@
                             {% if submission.isOvertime %}
                                 <br><strong>Note:</strong> This submission contains overtime ({{ submission.overtimeHours }}h) and requires manager and HR approval.
                             {% endif %}
-                        </div>
-                    {% endif %}
-
-                    {% if submission.isManagerApproved %}
-                        <div class="alert alert-warning">
-                            Approved by manager on {{ submission.managerApprovedAt|date('d/m/Y H:i') }}.
-                            Waiting for HR approval (overtime: {{ submission.overtimeHours }}h).
                         </div>
                     {% endif %}
 
@@ -89,14 +133,14 @@
                 {% endif %}
 
                 <div class="mb-3">
-                    <strong>Total hours this week:</strong>
+                    <strong>Total hours for {{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }}:</strong>
                     {% set hours = (totalDuration / 3600)|number_format(2) %}
                     {{ hours }}h
                     {% if totalDuration > 40 * 3600 %}
-                        <span class="badge bg-warning text-dark">Overtime: {{ ((totalDuration - 40 * 3600) / 3600)|number_format(1) }}h</span>
+                        <span class="badge bg-warning" style="color: #fff !important;">Overtime: {{ ((totalDuration - 40 * 3600) / 3600)|number_format(1) }}h</span>
                     {% endif %}
                     {% if leaveDays|default([])|length > 0 %}
-                        <br><span class="badge bg-info">{{ leaveDays|length }} day(s) on leave</span>
+                        <br><span class="badge bg-info" style="color: #fff !important;">{{ leaveDays|length }} day(s) on leave</span>
                     {% endif %}
                 </div>
                 <div class="mb-3">
@@ -117,23 +161,16 @@
                         You do not have a supervisor assigned. Please contact your administrator.
                     </div>
                 {% endif %}
-                {% if not canSubmit %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-clock"></i>
-                        {% set currentWeekStart = weekStart|date_modify('monday this week')|date('Y-m-d') %}
-                        {% if weekStart|date('Y-m-d') == currentWeekStart %}
-                            Weekly timesheets can only be submitted on <strong>Tuesday at 8:00 AM or later</strong>.
-                        {% else %}
-                            Previous week timesheets can only be submitted on <strong>Friday at 8:00 AM or later</strong>.
-                        {% endif %}
-                    </div>
-                {% elseif submission.isDraft %}
+                {% set totalWeeksToSubmit = unsubmittedWeeks|length + 1 %}
+                {% set otherRejectedWeeks = rejectedWeeks|filter(r => r.weekStart|date('Y-m-d') != weekStart|date('Y-m-d')) %}
+                {% set totalResubmitWeeks = otherRejectedWeeks|length + 1 %}
+                {% if submission.isDraft %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
-                        <i class="fas fa-paper-plane"></i> Submit to Supervisor
+                        <i class="fas fa-paper-plane"></i> {% if totalWeeksToSubmit > 1 %}Submit All Weeks ({{ totalWeeksToSubmit }}){% else %}Submit to Supervisor{% endif %}
                     </button>
                 {% elseif submission.isRejected %}
                     <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal">
-                        <i class="fas fa-redo"></i> Resubmit to Supervisor
+                        <i class="fas fa-redo"></i> {% if totalResubmitWeeks > 1 %}Resubmit All Weeks ({{ totalResubmitWeeks }}){% else %}Resubmit to Supervisor{% endif %}
                     </button>
                 {% endif %}
             </div>
@@ -151,12 +188,78 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ app.request.get('id') ? path('weekly_submission_staff_resubmit', {id: app.request.get('id')}) : path('weekly_submission_staff_submit') }}" method="post">
+            <form id="submitForm" action="{{ app.request.get('id') ? path('weekly_submission_staff_resubmit', {id: app.request.get('id')}) : (totalWeeksToSubmit > 1 or totalResubmitWeeks > 1 ? path('weekly_submission_staff_batch_submit') : path('weekly_submission_staff_submit')) }}" method="post">
+                <input type="hidden" name="week" value="{{ weekStart|date('Y-m-d') }}">
+                {% set submittedWeekDates = [] %}
+                {% if submission.isDraft %}
+                    {% for uw in unsubmittedWeeks %}
+                    <input type="hidden" name="weeks[]" value="{{ uw.weekStart|date('Y-m-d') }}">
+                        {% set submittedWeekDates = submittedWeekDates|merge([uw.weekStart|date('Y-m-d')]) %}
+                    {% endfor %}
+                    {% set currentWeekStr = currentWeekStart|date('Y-m-d') %}
+                    {% if currentWeekStr not in submittedWeekDates %}
+                    <input type="hidden" name="weeks[]" value="{{ currentWeekStr }}">
+                    {% endif %}
+                {% elseif submission.isRejected %}
+                    {% for rw in otherRejectedWeeks %}
+                    <input type="hidden" name="weeks[]" value="{{ rw.weekStart|date('Y-m-d') }}">
+                        {% set submittedWeekDates = submittedWeekDates|merge([rw.weekStart|date('Y-m-d')]) %}
+                    {% endfor %}
+                    {% set currentWeekStr = weekStart|date('Y-m-d') %}
+                    {% if currentWeekStr not in submittedWeekDates %}
+                    <input type="hidden" name="weeks[]" value="{{ currentWeekStr }}">
+                    {% endif %}
+                {% endif %}
             <div class="modal-body">
-                <div class="alert alert-info mb-3">
-                    <strong>Please review your timesheet before {% if submission.isRejected %}resubmitting{% else %}submitting{% endif %}.</strong>
+                {% if submission.isRejected and totalResubmitWeeks > 1 %}
+                <div class="mb-3">
+                    <strong>Weeks to be resubmitted:</strong>
+                    <table class="table table-sm table-bordered mt-2 mb-0">
+                        <thead>
+                            <tr><th>Week</th><th>Hours</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for rw in otherRejectedWeeks %}
+                            {% set rwDuration = 0 %}
+                            {% for entry in rw.submissions|default([rw]) %}
+                                {% set rwDuration = rwDuration + entry.totalDuration %}
+                            {% endfor %}
+                            <tr>
+                                <td>{{ rw.weekStart|date('d/m/Y') }} - {{ rw.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
+                                <td>{{ (rw.totalDuration / 3600)|number_format(2) }}h</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-warning fw-bold">
+                                <td>{{ weekStart|date('d/m/Y') }} - {{ weekStart|date_modify('+4 days')|date('d/m/Y') }} (current)</td>
+                                <td>{{ (totalDuration / 3600)|number_format(2) }}h</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                
+                {% elseif totalWeeksToSubmit > 1 %}
+                <div class="mb-3">
+                    <strong>Weeks to be submitted:</strong>
+                    <table class="table table-sm table-bordered mt-2 mb-0">
+                        <thead>
+                            <tr><th>Week</th><th>Hours</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for uw in unsubmittedWeeks %}
+                            <tr>
+                                <td>{{ uw.weekStart|date('d/m/Y') }} - {{ uw.weekEnd|date('d/m/Y') }}</td>
+                                <td>{% set h = (uw.duration / 3600)|number_format(2) %}{{ h }}h</td>
+                            </tr>
+                            {% endfor %}
+                            {% if currentWeekStr not in submittedWeekDates|default([]) %}
+                            <tr class="table-primary fw-bold">
+                                <td>{{ currentWeekStart|date('d/m/Y') }} - {{ currentWeekStart|date_modify('+4 days')|date('d/m/Y') }} (current)</td>
+                                <td>{% set h = (currentWeekDuration / 3600)|number_format(2) %}{{ h }}h</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong>Week:</strong><br>
@@ -168,6 +271,7 @@
                         <span class="badge bg-primary" style="font-size: 1.2em; color:#fff !important;">{{ hours }}h</span>
                     </div>
                 </div>
+                {% endif %}
 
                 <div class="mb-3 d-flex align-items-center gap-2">
                     <label for="supervisorSelect" class="form-label fw-bold mb-0">
@@ -200,8 +304,8 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-paper-plane"></i> {% if submission.isRejected %}Yes, Resubmit{% else %}Yes, Submit Now{% endif %}
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-redo"></i> {% if submission.isRejected %}Yes, Resubmit{% if totalResubmitWeeks > 1 %} All {{ totalResubmitWeeks }} Weeks{% endif %}{% else %}Yes, Submit{% if totalWeeksToSubmit > 1 %} All {{ totalWeeksToSubmit }} Weeks{% endif %}{% endif %}
                 </button>
             </div>
             </form>
@@ -233,36 +337,40 @@
                             <td>{{ entry.weekStart|date('d/m/Y') }} - {{ entry.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                             <td>
                                 {% if entry.isApproved %}
-                                    <span class="badge bg-success">Approved</span>
+                                    <span class="badge bg-success" style="color: #fff !important;">Approved</span>
+                                {% elseif entry.isHrApproved %}
+                                    <span class="badge bg-warning" style="color: #fff !important;">HR Approved - Pending Final</span>
                                 {% elseif entry.isManagerApproved %}
-                                    <span class="badge bg-warning text-dark">Manager Approved - Pending HR</span>
+                                    <span class="badge bg-warning" style="color: #fff !important;">Manager Approved - Pending HR</span>
                                 {% elseif entry.isSupervisorApproved %}
-                                    <span class="badge bg-info">Supervisor Approved</span>
+                                    <span class="badge bg-info" style="color: #fff !important;">Supervisor Approved</span>
                                 {% elseif entry.isRejected %}
                                     <a href="{{ path('weekly_submission_staff_week', {id: entry.id}) }}" class="text-decoration-none">
-                                        <span class="badge bg-danger">Rejected</span>
+                                        <span class="badge bg-danger" style="color: #fff !important;">Rejected</span>
                                     </a>
                                 {% elseif entry.isSubmitted %}
-                                    <span class="badge bg-primary">Submitted</span>
+                                    <span class="badge bg-primary" style="color: #fff !important;">Submitted</span>
                                 {% else %}
                                     <span class="badge bg-secondary" style="color:#fff !important;">Draft</span>
                                 {% endif %}
                                 {% if entry.isOvertime %}
-                                    <span class="badge bg-warning text-dark">Overtime</span>
+                            <span class="badge bg-warning" style="color: #fff !important;">Overtime</span>
                                 {% endif %}
                             </td>
                             <td>{{ entry.submittedAt ? entry.submittedAt|date('d/m/Y') : '-' }}</td>
                             <td>
                                 {% if entry.isDraft %}
-                                    {{ app.user.displayName }}
+                                    -
                                 {% elseif entry.isRejected %}
                                     {{ app.user.displayName }}
                                 {% elseif entry.isApproved %}
-                                    {{ app.user.displayName }}
+                                    -
+                                {% elseif entry.isHrApproved %}
+                                    HR (Final Approval)
                                 {% elseif entry.isManagerApproved %}
-                                    HR (Human Resources)
+                                    {{ managerHrUser ? managerHrUser.displayName : 'Manager HR' }}
                                 {% elseif entry.isSupervisorApproved %}
-                                    {{ entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-' }}
+                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-') }}
                                 {% elseif entry.isSubmitted %}
                                     {{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}
                                 {% endif %}

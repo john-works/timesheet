@@ -14,6 +14,33 @@ class WeeklySubmissionRepository extends EntityRepository
     }
 
     /**
+     * @return WeeklySubmission[]
+     */
+    public function findRejectedForUser(User $user): array
+    {
+        return $this->findBy(['user' => $user, 'status' => WeeklySubmission::STATUS_REJECTED], ['weekStart' => 'ASC']);
+    }
+
+    /**
+     * @return WeeklySubmission[]
+     */
+    public function findSubmittedWeekStartsForUser(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('s')
+            ->where('s.user = :user')
+            ->setParameter('user', $user)
+            ->andWhere('s.weekStart >= :from')
+            ->setParameter('from', $from)
+            ->andWhere('s.weekStart < :to')
+            ->setParameter('to', $to)
+            ->andWhere('s.status != :draft')
+            ->setParameter('draft', WeeklySubmission::STATUS_DRAFT)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * @return int[]
      */
     public function getSupervisedUserIds(User $user): array
@@ -323,7 +350,7 @@ class WeeklySubmissionRepository extends EntityRepository
         $qb = $this->createQueryBuilder('s');
         $qb->select('s')
             ->where('s.status IN (:statuses)')
-            ->setParameter('statuses', [WeeklySubmission::STATUS_APPROVED, WeeklySubmission::STATUS_REJECTED, WeeklySubmission::STATUS_MANAGER_APPROVED])
+            ->setParameter('statuses', [WeeklySubmission::STATUS_APPROVED, WeeklySubmission::STATUS_REJECTED, WeeklySubmission::STATUS_MANAGER_APPROVED, WeeklySubmission::STATUS_HR_APPROVED])
             ->orderBy('s.approvedAt', 'DESC');
 
         $conditions = $qb->expr()->orX(
@@ -435,6 +462,64 @@ class WeeklySubmissionRepository extends EntityRepository
         }
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Find overtime submissions pending Manager HR approval (STATUS_MANAGER_APPROVED + overtime).
+     * @return WeeklySubmission[]
+     */
+    public function findManagerHrPending(): array
+    {
+        $qb = $this->createQueryBuilder('s');
+        $qb->select('s')
+            ->where('s.status = :status')
+            ->setParameter('status', WeeklySubmission::STATUS_MANAGER_APPROVED)
+            ->andWhere('s.isOvertime = :overtime')
+            ->setParameter('overtime', true)
+            ->orderBy('s.weekStart', 'DESC');
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Find overtime submissions pending HR/Admin final approval (STATUS_HR_APPROVED).
+     * @return WeeklySubmission[]
+     */
+    public function findHrApprovedPendingHrFinal(User $hrUser): array
+    {
+        $userIds = $this->getViewableUserIds($hrUser);
+        $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $hrUser->getId()));
+
+        $qb = $this->createQueryBuilder('s');
+        $qb->select('s')
+            ->where('s.status = :status')
+            ->setParameter('status', WeeklySubmission::STATUS_HR_APPROVED)
+            ->andWhere('s.isOvertime = :overtime')
+            ->setParameter('overtime', true)
+            ->orderBy('s.weekStart', 'DESC');
+
+        if (!empty($userIds)) {
+            $qb->andWhere('s.user IN (:userIds)');
+            $qb->setParameter('userIds', $userIds);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Check if a user is the Manager HR (user id 271).
+     */
+    public function isManagerHr(User $user): bool
+    {
+        return $user->getId() === 271;
+    }
+
+    /**
+     * Find the Manager HR user entity (id 271).
+     */
+    public function getManagerHrUser(): ?User
+    {
+        return $this->getEntityManager()->getRepository(User::class)->find(271);
     }
 
     /**
@@ -672,6 +757,29 @@ class WeeklySubmissionRepository extends EntityRepository
         $qb2->andWhere($managerConditions);
         $actionCount += (int) $qb2->getQuery()->getSingleScalarResult();
 
+        // Count STATUS_MANAGER_APPROVED overtime submissions needing Manager HR action
+        if ($this->isManagerHr($user)) {
+            $qbManagerHr = $this->createQueryBuilder('s');
+            $qbManagerHr->select('COUNT(s.id)')
+                ->where('s.status = :managerApproved')
+                ->setParameter('managerApproved', WeeklySubmission::STATUS_MANAGER_APPROVED)
+                ->andWhere('s.isOvertime = :overtime')
+                ->setParameter('overtime', true);
+            $actionCount += (int) $qbManagerHr->getQuery()->getSingleScalarResult();
+        }
+
+        // Count STATUS_HR_APPROVED overtime submissions needing HR/Admin final action
+        $hasHrRole = in_array('ROLE_ADMIN', $user->getRoles(), true) || in_array('ROLE_HUMAN_RESOURCES', $user->getRoles(), true);
+        if ($hasHrRole) {
+            $qbHrFinal = $this->createQueryBuilder('s');
+            $qbHrFinal->select('COUNT(s.id)')
+                ->where('s.status = :hrApproved')
+                ->setParameter('hrApproved', WeeklySubmission::STATUS_HR_APPROVED)
+                ->andWhere('s.isOvertime = :overtime2')
+                ->setParameter('overtime2', true);
+            $actionCount += (int) $qbHrFinal->getQuery()->getSingleScalarResult();
+        }
+
         // Count user's own submissions with recent activity (last 7 days)
         $sevenDaysAgo = new \DateTimeImmutable('-7 days');
         $qb3 = $this->createQueryBuilder('s');
@@ -719,5 +827,24 @@ class WeeklySubmissionRepository extends EntityRepository
             ->setMaxResults(1);
 
         return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    public function isDateLockedForUser(User $user, \DateTimeInterface $date): bool
+    {
+        $submission = $this->findSubmissionForDate($user, $date);
+
+        if ($submission === null) {
+            return false;
+        }
+
+        $lockedStatuses = [
+            WeeklySubmission::STATUS_SUBMITTED,
+            WeeklySubmission::STATUS_SUPERVISOR_APPROVED,
+            WeeklySubmission::STATUS_MANAGER_APPROVED,
+            WeeklySubmission::STATUS_HR_APPROVED,
+            WeeklySubmission::STATUS_APPROVED,
+        ];
+
+        return in_array($submission->getStatus(), $lockedStatuses, true);
     }
 }

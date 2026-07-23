@@ -33,11 +33,11 @@
                                 <td>{{ submission.weekStart|date('d/m/Y') }} - {{ submission.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                                 <td>
                                     {% if submission.isApproved %}
-                                        <span class="badge bg-success">Approved</span>
+                                        <span class="badge bg-success" style="color: #fff !important;">Approved</span>
                                     {% elseif submission.isRejected %}
-                                        <span class="badge bg-danger">Rejected</span>
+                                        <span class="badge bg-danger" style="color: #fff !important;">Rejected</span>
                                     {% elseif submission.isSupervisorApproved %}
-                                        <span class="badge bg-info">Supervisor Approved</span>
+                                        <span class="badge bg-info" style="color: #fff !important;">Supervisor Approved</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ (submission.totalDuration / 3600)|number_format(2) }}h</td>

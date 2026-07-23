@@ -21,6 +21,7 @@ use App\Timesheet\FavoriteRecordService;
 use App\Timesheet\TimesheetService;
 use App\Utils\PageSetup;
 use App\WorkingTime\WorkingTimeService;
+use KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -40,6 +41,7 @@ final class QuickEntryController extends AbstractController
         private readonly FavoriteRecordService $favoriteRecordService,
         private readonly EventDispatcherInterface $dispatcher,
         private readonly WorkingTimeService $workingTimeService,
+        private readonly WeeklySubmissionRepository $weeklySubmissionRepository,
     )
     {
     }
@@ -250,7 +252,7 @@ final class QuickEntryController extends AbstractController
                         if ($timesheet->isRunning()) {
                             $saveTimesheets[] = $timesheet;
                         } elseif ($duration === null) {
-                            if ($this->isGranted('delete', $timesheet)) {
+                            if ($this->isGranted('delete', $timesheet) && !$this->weeklySubmissionRepository->isDateLockedForUser($timesheet->getUser(), $timesheet->getBegin())) {
                                 $deleteTimesheets[] = $timesheet;
                             }
                         } else {

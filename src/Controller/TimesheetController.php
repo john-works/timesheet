@@ -19,6 +19,7 @@ use App\Repository\ProjectRepository;
 use App\Repository\TagRepository;
 use App\Repository\TimesheetRepository;
 use App\Timesheet\TimesheetService;
+use KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -45,6 +46,7 @@ final class TimesheetController extends TimesheetAbstractController
         TagRepository $tagRepository,
         private readonly ActivityRepository $activityRepository,
         private readonly ProjectRepository $projectRepository,
+        private readonly WeeklySubmissionRepository $weeklySubmissionRepository,
     ) {
         parent::__construct($repository, $dispatcher, $service, $configuration, $tagRepository);
     }
@@ -71,6 +73,11 @@ final class TimesheetController extends TimesheetAbstractController
     #[IsGranted('edit', 'entry')]
     public function editAction(Timesheet $entry, Request $request): Response
     {
+        if ($this->weeklySubmissionRepository->isDateLockedForUser($entry->getUser(), $entry->getBegin())) {
+            $this->addFlash('error', 'Cannot edit this entry. The timesheet for this week has already been submitted.');
+            return $this->redirectToRoute('timesheet');
+        }
+
         if ($request->isMethod('POST') && $this->isTodayEntry($entry->getBegin())) {
             $now = new \DateTime();
             $hour = (int) $now->format('G');
@@ -101,7 +108,39 @@ final class TimesheetController extends TimesheetAbstractController
     #[IsGranted('delete_own_timesheet')]
     public function multiDeleteAction(Request $request): Response
     {
-        return $this->multiDelete($request);
+        $form = $this->getMultiUpdateActionForm();
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $dto = $form->getData();
+            $timesheets = [];
+            $lockedCount = 0;
+            /** @var Timesheet $timesheet */
+            foreach ($dto->getEntities() as $timesheet) {
+                if (!$this->isGranted('delete', $timesheet)) {
+                    continue;
+                }
+                if ($this->weeklySubmissionRepository->isDateLockedForUser($timesheet->getUser(), $timesheet->getBegin())) {
+                    $lockedCount++;
+                    continue;
+                }
+                $timesheets[] = $timesheet;
+            }
+            $dto->setEntities($timesheets);
+
+            if ($lockedCount > 0) {
+                $this->addFlash('error', $lockedCount . ' entry/entries skipped — timesheet has been submitted.');
+            }
+
+            try {
+                $this->service->deleteMultipleTimesheets($dto->getEntities());
+                $this->flashSuccess('action.delete.success');
+            } catch (\Exception $ex) {
+                $this->flashDeleteException($ex);
+            }
+        }
+
+        return $this->redirectToRoute($this->getTimesheetRoute());
     }
 
     #[Route(path: '/create', name: 'timesheet_create', methods: ['GET', 'POST'])]

@@ -72,8 +72,16 @@ final class MenuSubscriber implements EventSubscriberInterface
             $weeklySubmission->addChild(
                 new MenuItemModel('weekly_submission_supervisor_history', 'Approval History', 'weekly_submission_supervisor_history', [], 'history')
             );
+        }
 
-
+        if ($this->repository->isManagerHr($user)) {
+            $overtimeCount = count($this->repository->findManagerHrPending());
+            $overtimeItem = new MenuItemModel('weekly_submission_manager_hr_pending', 'Overtime', 'weekly_submission_manager_hr_pending', [], 'clock');
+            if ($overtimeCount > 0) {
+                $overtimeItem->setBadge((string) $overtimeCount);
+                $overtimeItem->setBadgeColor('warning');
+            }
+            $weeklySubmission->addChild($overtimeItem);
         }
 
         if ($weeklySubmission->hasChildren()) {

@@ -17,6 +17,7 @@ class WeeklySubmission
     public const STATUS_SUBMITTED = 'submitted';
     public const STATUS_SUPERVISOR_APPROVED = 'supervisor_approved';
     public const STATUS_MANAGER_APPROVED = 'manager_approved';
+    public const STATUS_HR_APPROVED = 'hr_approved';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
 
@@ -74,6 +75,16 @@ class WeeklySubmission
 
     #[ORM\Column(name: 'overtime_hours', type: Types::INTEGER, nullable: false, options: ['default' => 0])]
     private int $overtimeHours = 0;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'manager_hr_approved_by', nullable: true, onDelete: 'SET NULL')]
+    private ?User $managerHrApprovedBy = null;
+
+    #[ORM\Column(name: 'manager_hr_approved_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $managerHrApprovedAt = null;
+
+    #[ORM\Column(name: 'manager_hr_notes', type: Types::TEXT, nullable: true)]
+    private ?string $managerHrNotes = null;
 
     #[ORM\Column(name: 'hr_approved_by', type: Types::INTEGER, nullable: true)]
     private ?int $hrApprovedBy = null;
@@ -140,6 +151,11 @@ class WeeklySubmission
     public function isManagerApproved(): bool
     {
         return $this->status === self::STATUS_MANAGER_APPROVED;
+    }
+
+    public function isHrApproved(): bool
+    {
+        return $this->status === self::STATUS_HR_APPROVED;
     }
 
     public function isApproved(): bool
@@ -220,6 +236,36 @@ class WeeklySubmission
     public function setManagerNotes(?string $managerNotes): void
     {
         $this->managerNotes = $managerNotes;
+    }
+
+    public function getManagerHrApprovedBy(): ?User
+    {
+        return $this->managerHrApprovedBy;
+    }
+
+    public function setManagerHrApprovedBy(?User $managerHrApprovedBy): void
+    {
+        $this->managerHrApprovedBy = $managerHrApprovedBy;
+    }
+
+    public function getManagerHrApprovedAt(): ?\DateTimeImmutable
+    {
+        return $this->managerHrApprovedAt;
+    }
+
+    public function setManagerHrApprovedAt(?\DateTimeImmutable $managerHrApprovedAt): void
+    {
+        $this->managerHrApprovedAt = $managerHrApprovedAt;
+    }
+
+    public function getManagerHrNotes(): ?string
+    {
+        return $this->managerHrNotes;
+    }
+
+    public function setManagerHrNotes(?string $managerHrNotes): void
+    {
+        $this->managerHrNotes = $managerHrNotes;
     }
 
     public function getTotalDuration(): int

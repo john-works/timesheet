@@ -1,0 +1,17 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Manager HR Approved - Pending HR Final Approval{% endblock %}
+
+{% block body %}
+<p>
+    Your weekly overtime submission for <strong>{{ weekStart }} - {{ weekEnd }}</strong>
+    has been approved by <strong>Manager HR</strong> and is now pending final approval from HR/Admin.
+</p>
+<p>
+    <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h<br>
+    <strong>Overtime hours:</strong> {{ submission.overtimeHours }}h
+</p>
+<p>
+    <a href="{{ url('weekly_submission_supervisor_pending') }}">Click here to view status</a>
+</p>
+{% endblock %}

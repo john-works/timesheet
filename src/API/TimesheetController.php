@@ -24,6 +24,7 @@ use App\Repository\TagRepository;
 use App\Repository\TimesheetRepository;
 use App\Repository\UserRepository;
 use App\Timesheet\TimesheetService;
+use KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository;
 use App\Timesheet\TrackingMode\TrackingModeInterface;
 use App\Utils\SearchTerm;
 use App\Validator\ValidationFailedException;
@@ -58,7 +59,8 @@ final class TimesheetController extends BaseApiController
         private readonly TimesheetRepository $repository,
         private readonly TagRepository $tagRepository,
         private readonly EventDispatcherInterface $dispatcher,
-        private readonly TimesheetService $service
+        private readonly TimesheetService $service,
+        private readonly WeeklySubmissionRepository $weeklySubmissionRepository,
     ) {
     }
 
@@ -380,6 +382,12 @@ final class TimesheetController extends BaseApiController
     #[Route(methods: ['DELETE'], path: '/{id}', name: 'delete_timesheet', requirements: ['id' => '\d+'])]
     public function deleteAction(Timesheet $timesheet): Response
     {
+        if ($this->weeklySubmissionRepository->isDateLockedForUser($timesheet->getUser(), $timesheet->getBegin())) {
+            $view = new View(['message' => 'You cannot delete this entry because it has been submitted for approval.'], Response::HTTP_CONFLICT);
+
+            return $this->viewHandler->handle($view);
+        }
+
         $this->service->deleteTimesheet($timesheet);
 
         $view = new View(null, Response::HTTP_NO_CONTENT);

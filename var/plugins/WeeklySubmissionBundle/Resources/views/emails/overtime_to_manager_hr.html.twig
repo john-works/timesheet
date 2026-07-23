@@ -1,0 +1,17 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Overtime Approval Required{% endblock %}
+
+{% block body %}
+<p>
+    <strong>{{ staff.displayName }}</strong>'s weekly timesheet contains overtime and requires <strong>your approval</strong> before it can proceed to HR/Admin for final approval.
+</p>
+<p>
+    <strong>Week:</strong> {{ weekStart }} - {{ weekEnd }}<br>
+    <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h<br>
+    <strong>Overtime hours:</strong> {{ submission.overtimeHours }}h
+</p>
+<p>
+    <a href="{{ url('weekly_submission_supervisor_pending') }}">Click here to review and approve</a>
+</p>
+{% endblock %}

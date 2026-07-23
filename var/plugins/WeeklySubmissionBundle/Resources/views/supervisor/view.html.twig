@@ -25,18 +25,18 @@
                     </div>
                     <div class="col-md-3">
                         <strong>Total Hours:</strong><br>
-                        <span class="badge bg-primary" style="font-size: 1.1em;">{{ (totalDuration / 3600)|number_format(2) }}h</span>
+                        <span class="badge bg-primary" style="font-size: 1.1em; color: #fff !important;">{{ (totalDuration / 3600)|number_format(2) }}h</span>
                     </div>
                     <div class="col-md-3">
                         <strong>Status:</strong><br>
                         {% if submission.isSubmitted %}
-                            <span class="badge bg-primary">Pending Supervisor Approval</span>
+                            <span class="badge bg-primary" style="color: #fff !important;">Pending Supervisor Approval</span>
                         {% elseif submission.isSupervisorApproved %}
-                            <span class="badge bg-info">Supervisor Approved - Pending Final Approval</span>
+                            <span class="badge bg-info" style="color: #fff !important;">Supervisor Approved - Pending Final Approval</span>
                         {% elseif submission.isApproved %}
-                            <span class="badge bg-success">Approved</span>
+                            <span class="badge bg-success" style="color: #fff !important;">Approved</span>
                         {% elseif submission.isRejected %}
-                            <span class="badge bg-danger">Rejected</span>
+                            <span class="badge bg-danger" style="color: #fff !important;">Rejected</span>
                         {% endif %}
                     </div>
                 </div>
@@ -71,7 +71,7 @@
                                 <td>
                                     {{ entry.activity ? entry.activity.name : '-' }}
                                     {% if isLeave %}
-                                        <span class="badge bg-info">On Leave</span>
+                                        <span class="badge bg-info" style="color: #fff !important;">On Leave</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -136,8 +136,8 @@
                         <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h
                     </div>
                     <div class="mb-3">
-                        <label for="notes{{ submission.id }}" class="form-label">Notes (optional)</label>
-                        <textarea id="notes{{ submission.id }}" name="notes" class="form-control" rows="3"></textarea>
+                        <label for="notes{{ submission.id }}" class="form-label">Notes <span class="text-danger">*</span></label>
+                        <textarea id="notes{{ submission.id }}" name="notes" class="form-control" rows="3" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -171,8 +171,8 @@
                         <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h
                     </div>
                     <div class="mb-3">
-                        <label for="managerNotes{{ submission.id }}" class="form-label">Notes (optional)</label>
-                        <textarea id="managerNotes{{ submission.id }}" name="notes" class="form-control" rows="3"></textarea>
+                        <label for="managerNotes{{ submission.id }}" class="form-label">Notes <span class="text-danger">*</span></label>
+                        <textarea id="managerNotes{{ submission.id }}" name="notes" class="form-control" rows="3" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
