@@ -175,7 +175,7 @@ class WeeklySubmissionMailer
                 sprintf(
                     '<p>Dear %s,</p>
                      <p>This is a reminder to submit your timesheet for this week.</p>
-                     <p>Please ensure all your timesheet entries are submitted by <strong>Thursday 4:00 PM</strong>to <strong>Saturday 7:00 PM.</p>
+                     <p>Please ensure all your timesheet entries are submitted by <strong>Friday.</strong></p>
                      <p>Thank you.</p>',
                     htmlspecialchars($user->getDisplayName() ?? $user->getUserIdentifier())
                 )

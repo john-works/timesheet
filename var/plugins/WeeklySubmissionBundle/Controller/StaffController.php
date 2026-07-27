@@ -101,7 +101,7 @@ final class StaffController extends AbstractController
 
         $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
 
-        $canSubmit = true;
+        $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
 
         $prevWeek = $weekStart->modify('-7 days')->format('Y-m-d');
         $nextWeek = $isCurrentWeek ? null : $weekStart->modify('+7 days')->format('Y-m-d');
@@ -178,6 +178,13 @@ final class StaffController extends AbstractController
         }
 
         $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $dayOfWeek = (int) $now->format('N');
+        $hour = (int) $now->format('G');
+
+        if ($dayOfWeek !== 5 || $hour < 8) {
+            $this->addFlash('error', 'Submission is only available on  Friday Only');
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
+        }
 
         $weekEnd = $weekStart->modify('+4 days');
         $query = new TimesheetQuery();
@@ -418,6 +425,15 @@ final class StaffController extends AbstractController
         }
 
         $weeks = array_values(array_unique($weeks));
+
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $dayOfWeek = (int) $now->format('N');
+        $hour = (int) $now->format('G');
+
+        if ($dayOfWeek !== 5 || $hour < 8) {
+            $this->addFlash('error', 'Submission is only available on  Friday Only');
+            return $this->redirectToRoute('weekly_submission_staff');
+        }
 
         $submittedCount = 0;
         $errors = [];

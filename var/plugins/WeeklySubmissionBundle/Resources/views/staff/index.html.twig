@@ -165,13 +165,31 @@
                 {% set otherRejectedWeeks = rejectedWeeks|filter(r => r.weekStart|date('Y-m-d') != weekStart|date('Y-m-d')) %}
                 {% set totalResubmitWeeks = otherRejectedWeeks|length + 1 %}
                 {% if submission.isDraft %}
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
-                        <i class="fas fa-paper-plane"></i> {% if totalWeeksToSubmit > 1 %}Submit All Weeks ({{ totalWeeksToSubmit }}){% else %}Submit to Supervisor{% endif %}
-                    </button>
+                    {% if canSubmit %}
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
+                            <i class="fas fa-paper-plane"></i> {% if totalWeeksToSubmit > 1 %}Submit All Weeks ({{ totalWeeksToSubmit }}){% else %}Submit to Supervisor{% endif %}
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-primary" disabled>
+                            <i class="fas fa-paper-plane"></i> Submit to Supervisor
+                        </button>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-clock"></i> Submission is only available on  Friday Only
+                        </div>
+                    {% endif %}
                 {% elseif submission.isRejected %}
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal">
-                        <i class="fas fa-redo"></i> {% if totalResubmitWeeks > 1 %}Resubmit All Weeks ({{ totalResubmitWeeks }}){% else %}Resubmit to Supervisor{% endif %}
-                    </button>
+                    {% if canSubmit %}
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal">
+                            <i class="fas fa-redo"></i> {% if totalResubmitWeeks > 1 %}Resubmit All Weeks ({{ totalResubmitWeeks }}){% else %}Resubmit to Supervisor{% endif %}
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-warning" disabled>
+                            <i class="fas fa-redo"></i> Resubmit to Supervisor
+                        </button>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-clock"></i> Resubmission is only available on  Friday Only
+                        </div>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
