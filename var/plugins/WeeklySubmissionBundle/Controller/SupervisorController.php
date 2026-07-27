@@ -867,6 +867,10 @@ final class SupervisorController extends AbstractController
         }
 
         if ($this->repository->isSeniorOfficer($staffUser)) {
+            $supervisorIds = $this->repository->getSupervisedUserIds($user);
+            if (in_array($staffUser->getId(), $supervisorIds, true)) {
+                return true;
+            }
             $managedIds = $this->repository->getManagedUserIds($user);
             return in_array($staffUser->getId(), $managedIds, true);
         }
@@ -897,13 +901,19 @@ final class SupervisorController extends AbstractController
             return false;
         }
 
-        // Team leads/managers can approve their team members
+        // Senior Officers — only department director can approve (2nd stage)
+        if ($this->repository->isSeniorOfficer($staffUser)) {
+            $directorManagedIds = $this->repository->getDirectorManagedUserIds($user);
+            return in_array($staffUser->getId(), $directorManagedIds, true);
+        }
+
+        // Officers & below — team leads/managers can approve their team members
         $managedIds = $this->repository->getManagedUserIds($user);
         if (in_array($staffUser->getId(), $managedIds, true)) {
             return true;
         }
 
-        // Directors can approve senior officers in their department
+        // Fallback: directors can approve in their department
         $directorManagedIds = $this->repository->getDirectorManagedUserIds($user);
         if (in_array($staffUser->getId(), $directorManagedIds, true)) {
             return true;

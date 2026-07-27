@@ -1,0 +1,183 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block main %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-sitemap"></i> User Approval Rights</h3>
+                <div class="card-tools">
+                    <span class="badge bg-primary" style="color: #fff !important;">{{ approvalData|length }} users</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6>Approval Workflow Rules:</h6>
+                        <ul class="list-unstyled mb-0" style="font-size:0.85rem; line-height: 2;">
+                            <li><span class="badge bg-secondary" style="color:#fff !important">Regional</span> Single-level: Director/ED approves directly</li>
+                            <li><span class="badge bg-secondary" style="color:#fff !important">Director</span> Single-level: ED approves directly</li>
+                            <li><span class="badge bg-secondary" style="color:#fff !important">Team Lead/Manager</span> Single-level: Supervisor approves directly</li>
+                            <li><span class="badge bg-warning" style="color:#000 !important">Senior Officer</span> 2-step: Step 1 = Supervisor (team lead), Step 2 = Department Director only</li>
+                            <li><span class="badge bg-info" style="color:#fff !important">Officer & Below</span> 2-step: Step 1 = Supervisor, Step 2 = Team Lead/Manager</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="approvalSearch" class="form-control" placeholder="Search by name, department, category..." oninput="filterApprovalTable()">
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered" id="approvalTable">
+                        <thead>
+                            <tr>
+                                <th style="min-width:180px">Staff</th>
+                                <th style="min-width:130px">Category</th>
+                                <th>Workflow</th>
+                                <th style="min-width:220px">Step 1 Approver</th>
+                                <th style="min-width:220px">Step 2 Approver</th>
+                                <th style="min-width:80px">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set currentDept = '' %}
+                            {% for row in approvalData %}
+                            {% set staff = row.user %}
+                            {% set isMissing = (row.workflowType == 'two-step' and row.step1 is null) or (row.category == 'Senior Officer' and row.step2 is null) %}
+
+                            {% if row.department != currentDept %}
+                                {% set currentDept = row.department %}
+                                <tr class="table-active">
+                                    <td colspan="6" style="background-color:#e9ecef !important;">
+                                        <strong><i class="fas fa-building"></i> {{ row.department }}</strong>
+                                        {% if row.deptDirector %}
+                                            <span class="text-muted ms-2">— Director: {{ row.deptDirector.displayName }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endif %}
+
+                            <tr class="{{ isMissing ? 'table-danger' : '' }}">
+                                <td>
+                                    <strong>{{ staff.displayName }}</strong>
+                                    <br><small class="text-muted">{{ staff.username }}</small>
+                                    {% if staff.title %}
+                                    <br><small class="text-muted">{{ staff.title }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.category == 'Executive Director' %}
+                                        <span class="badge bg-dark" style="color:#fff !important">Executive Director</span>
+                                    {% elseif row.category == 'Director' %}
+                                        <span class="badge bg-danger" style="color:#fff !important">Director</span>
+                                    {% elseif row.category == 'Regional Manager' %}
+                                        <span class="badge bg-success" style="color:#fff !important">Regional Manager</span>
+                                    {% elseif row.category == 'Regional Staff' %}
+                                        <span class="badge bg-success" style="color:#fff !important">Regional Staff</span>
+                                    {% elseif row.category == 'Team Lead/Manager' %}
+                                        <span class="badge bg-primary" style="color:#fff !important">Team Lead/Manager</span>
+                                    {% elseif row.category == 'Senior Officer' %}
+                                        <span class="badge bg-warning" style="color:#000 !important">Senior Officer</span>
+                                    {% else %}
+                                        <span class="badge bg-info" style="color:#fff !important">Officer & Below</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.workflowType == 'single' %}
+                                        <span class="badge bg-secondary" style="color:#fff !important">Single-level</span>
+                                    {% else %}
+                                        <span class="badge bg-warning" style="color:#000 !important">2-Step</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ path('weekly_submission_admin_approval_rights_update') }}" method="post" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="user_id" value="{{ staff.id }}">
+                                        <select name="supervisor_id" class="form-control form-control-sm" style="min-width:160px" required>
+                                            <option value="">-- None --</option>
+                                            {% for u in allUsers %}
+                                                {% if u.id != staff.id %}
+                                                <option value="{{ u.id }}" {% if row.step1 and row.step1.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Save"><i class="fas fa-save"></i></button>
+                                    </form>
+                                </td>
+                                <td>
+                                    {% if row.workflowType == 'single' %}
+                                        <small class="text-muted">-</small>
+                                    {% elseif row.step2 %}
+                                        <span class="text-success"><i class="fas fa-check-circle"></i> {{ row.step2.displayName }}</span>
+                                        {% if row.category == 'Senior Officer' %}
+                                        <br><small class="text-muted">(Department Director)</small>
+                                        {% else %}
+                                        <br><small class="text-muted">(Team Lead/Manager)</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Not assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.workflowType == 'single' %}
+                                        <span class="text-success"><i class="fas fa-check-circle"></i></span>
+                                    {% elseif row.step1 and row.step2 %}
+                                        <span class="text-success"><i class="fas fa-check-circle"></i></span>
+                                    {% elseif row.step1 and not row.step2 %}
+                                        <span class="text-warning"><i class="fas fa-exclamation-circle"></i></span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-times-circle"></i></span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table-danger td { background-color: #fff3f3 !important; }
+    .badge { font-size: 0.75rem; }
+    .table-active td { border-bottom: 2px solid #dee2e6 !important; }
+</style>
+
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.filterApprovalTable = function() {
+            var filter = document.getElementById('approvalSearch').value.toLowerCase();
+            var table = document.getElementById('approvalTable');
+            if (!table) return;
+            var rows = Array.from(table.tBodies[0].rows);
+
+            rows.forEach(function(row) {
+                if (row.classList.contains('table-active')) return;
+                var text = row.textContent.toLowerCase();
+                row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+            });
+
+            var headers = table.tBodies[0].querySelectorAll('tr.table-active');
+            headers.forEach(function(header) {
+                var next = header.nextElementSibling;
+                var hasVisible = false;
+                while (next && !next.classList.contains('table-active')) {
+                    if (next.style.display !== 'none') { hasVisible = true; break; }
+                    next = next.nextElementSibling;
+                }
+                header.style.display = (hasVisible || filter === '') ? '' : 'none';
+            });
+        };
+    });
+    </script>
+{% endblock %}

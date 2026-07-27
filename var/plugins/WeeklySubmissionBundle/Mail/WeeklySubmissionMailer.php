@@ -167,21 +167,51 @@ class WeeklySubmissionMailer
 
     public function sendSubmissionReminder(User $user): void
     {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
+        $weekStart = $now->modify('monday this week')->setTime(0, 0, 0);
+        $weekEnd = $weekStart->modify('+4 days');
+
         $email = (new Email())
-            ->subject('Timesheet Submission Reminder')
+            ->subject('Timesheet Submission Reminder - Week of ' . $weekStart->format('d M Y'))
             ->to(new \Symfony\Component\Mime\Address($user->getEmail(), $user->getDisplayName() ?? ''))
             ->replyTo('noreply@timesheet.ppda.go.ug')
             ->html(
                 sprintf(
-                    '<p>Dear %s,</p>
-                     <p>This is a reminder to submit your timesheet for this week.</p>
-                     <p>Please ensure all your timesheet entries are submitted by <strong>Friday.</strong></p>
+                     '<p>Dear %s,</p>
+                     <p>This is a friendly reminder that you have <strong>not yet submitted</strong> your weekly timesheet.</p>
+                     <p><strong>Week:</strong> %s - %s</p>
+                     <p>Please submit your timesheet as soon as possible.</p>
+                     <hr>
+                     <p><strong>Submission Rules:</strong></p>
+                     <ul>
+                         <li>Timesheets for the same week can only be submitted to supervisors on <strong>Fridays</strong> and <strong>Mondays</strong>.</li>
+                         <li>You may submit timesheets for any eligible past week within the current month.</li>
+                         <li>Previous month weeks can only be submitted within the <strong>first 5 days</strong> of the new month.</li>
+                     </ul>
                      <p>Thank you.</p>',
-                    htmlspecialchars($user->getDisplayName() ?? $user->getUserIdentifier())
+                    htmlspecialchars($user->getDisplayName() ?? $user->getUserIdentifier()),
+                    $weekStart->format('d M Y'),
+                    $weekEnd->format('d M Y')
                 )
             );
 
         $this->mailer->sendToUser($user, $email);
+    }
+
+    public function sendApprovalReminder(User $supervisor, array $staffList, string $weekStart, string $weekEnd): void
+    {
+        $html = $this->twig->render('@WeeklySubmission/emails/approval_reminder.html.twig', [
+            'supervisor' => $supervisor,
+            'submissions' => $staffList,
+            'weekStart' => $weekStart,
+            'weekEnd' => $weekEnd,
+        ]);
+
+        $email = (new Email())
+            ->subject(sprintf('[Timesheet] Approval Reminder - %d pending submission(s) for week %s - %s', count($staffList), $weekStart, $weekEnd))
+            ->html($html);
+
+        $this->mailer->sendToUser($supervisor, $email);
     }
 
     public function sendBatchSubmittedNotification(User $staff, int $weekCount, User $supervisor): void

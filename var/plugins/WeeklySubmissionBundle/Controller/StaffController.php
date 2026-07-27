@@ -95,13 +95,13 @@ final class StaffController extends AbstractController
             }
         }
 
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
         $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
         $hour = (int) $now->format('G');
 
         $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
 
-        $canSubmit = ($dayOfWeek === 5 && $hour >= 8);
+        $canSubmit = (($dayOfWeek === 5 || $dayOfWeek === 1) && $hour >= 8);
 
         $prevWeek = $weekStart->modify('-7 days')->format('Y-m-d');
         $nextWeek = $isCurrentWeek ? null : $weekStart->modify('+7 days')->format('Y-m-d');
@@ -113,6 +113,10 @@ final class StaffController extends AbstractController
 
         $unsubmittedWeeks = $this->findUnsubmittedPreviousWeeks($user, $currentWeekStart);
         $rejectedWeeks = $this->repository->findRejectedForUser($user);
+
+        $lastWeekStart = $currentWeekStart->modify('-7 days');
+        $lastWeekSubmission = $this->repository->findForUserAndWeek($user, $lastWeekStart);
+        $lastWeekNotSubmitted = ($lastWeekSubmission === null || !$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved());
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
@@ -131,6 +135,7 @@ final class StaffController extends AbstractController
             'currentWeekStart' => $currentWeekStart,
             'currentWeekDuration' => $currentWeekDuration,
             'managerHrUser' => $this->repository->getManagerHrUser(),
+            'lastWeekNotSubmitted' => $lastWeekNotSubmitted,
         ]);
     }
 
@@ -177,12 +182,12 @@ final class StaffController extends AbstractController
             return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
         $dayOfWeek = (int) $now->format('N');
         $hour = (int) $now->format('G');
 
-        if ($dayOfWeek !== 5 || $hour < 8) {
-            $this->addFlash('error', 'Submission is only available on  Friday Only');
+        if (($dayOfWeek !== 5 && $dayOfWeek !== 1) || $hour < 8) {
+            $this->addFlash('error', 'Submission is only available on Friday or Monday after 8:00 AM');
             return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
@@ -393,7 +398,24 @@ final class StaffController extends AbstractController
         $unsubmittedWeeks = [];
         $checkWeek = $currentWeekStart->modify('-7 days');
 
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
+        $currentMonth = (int) $now->format('m');
+        $currentYear = (int) $now->format('Y');
+        $dayOfMonth = (int) $now->format('d');
+        $gracePeriod = ($dayOfMonth <= 5);
+
         for ($i = 0; $i < 8; $i++) {
+            $weekMonth = (int) $checkWeek->format('m');
+            $weekYear = (int) $checkWeek->format('Y');
+
+            // Month boundary rule: skip previous month weeks unless within 5-day grace period
+            if ($weekYear < $currentYear || ($weekYear === $currentYear && $weekMonth < $currentMonth)) {
+                if (!$gracePeriod) {
+                    $checkWeek = $checkWeek->modify('-7 days');
+                    continue;
+                }
+            }
+
             $dateKey = $checkWeek->format('Y-m-d');
             if (!isset($submittedDates[$dateKey])) {
                 $weekDuration = 0;
@@ -426,12 +448,12 @@ final class StaffController extends AbstractController
 
         $weeks = array_values(array_unique($weeks));
 
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
         $dayOfWeek = (int) $now->format('N');
         $hour = (int) $now->format('G');
 
-        if ($dayOfWeek !== 5 || $hour < 8) {
-            $this->addFlash('error', 'Submission is only available on  Friday Only');
+        if (($dayOfWeek !== 5 && $dayOfWeek !== 1) || $hour < 8) {
+            $this->addFlash('error', 'Submission is only available on Friday or Monday after 8:00 AM');
             return $this->redirectToRoute('weekly_submission_staff');
         }
 
@@ -523,6 +545,23 @@ final class StaffController extends AbstractController
             $overtimeThreshold = 40 * 3600;
             $isOvertime = $totalDuration > $overtimeThreshold;
             $overtimeHours = $isOvertime ? (int) (($totalDuration - $overtimeThreshold) / 3600) : 0;
+
+            $selectedSupervisorId = $request->request->get('supervisor_id');
+            if ($selectedSupervisorId !== null && $selectedSupervisorId !== '') {
+                $selectedSupervisor = $this->userRepository->find((int) $selectedSupervisorId);
+                if ($selectedSupervisor !== null && $selectedSupervisor->isEnabled()) {
+                    $deptUserIds = $this->repository->getDepartmentUserIds($user);
+                    if (in_array((int) $selectedSupervisorId, $deptUserIds, true)) {
+                        $user->setSupervisor($selectedSupervisor);
+                        $this->entityManager->persist($user);
+                    }
+                }
+            }
+
+            if ($user->getSupervisor() === null) {
+                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': No supervisor selected';
+                continue;
+            }
 
             $submission->setTotalDuration($totalDuration);
             $submission->setIsOvertime($isOvertime);

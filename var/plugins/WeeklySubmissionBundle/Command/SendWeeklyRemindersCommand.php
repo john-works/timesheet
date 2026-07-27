@@ -3,6 +3,7 @@
 namespace KimaiPlugin\WeeklySubmissionBundle\Command;
 
 use App\Repository\UserRepository;
+use KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository;
 use KimaiPlugin\WeeklySubmissionBundle\Mail\WeeklySubmissionMailer;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -14,6 +15,7 @@ class SendWeeklyRemindersCommand extends Command
 {
     public function __construct(
         private readonly UserRepository $userRepository,
+        private readonly WeeklySubmissionRepository $repository,
         private readonly WeeklySubmissionMailer $mailer,
     )
     {
@@ -22,34 +24,48 @@ class SendWeeklyRemindersCommand extends Command
 
     protected function configure(): void
     {
-        $this->setDescription('Send timesheet submission reminder emails to all active users');
+        $this->setDescription('Send reminder emails to users who have not submitted their weekly timesheet');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $users = $this->userRepository->findBy(['enabled' => true]);
-        $sent = 0;
-        $failed = 0;
-        $skipped = 0;
+        // Testing: only send to jssekamatte
+        $user = $this->userRepository->findOneBy(['username' => 'jssekamatte']);
 
-        foreach ($users as $user) {
-            if (empty($user->getDepartments())) {
-                $skipped++;
-                $output->writeln(sprintf('<comment>Skipped %s (no department)</comment>', $user->getUserIdentifier()));
-                continue;
-            }
-
-            try {
-                $this->mailer->sendSubmissionReminder($user);
-                $sent++;
-                $output->writeln(sprintf('<info>Sent to %s (%s)</info>', $user->getDisplayName(), $user->getEmail()));
-            } catch (\Exception $e) {
-                $failed++;
-                $output->writeln(sprintf('<error>Failed to send to %s: %s</error>', $user->getUserIdentifier(), $e->getMessage()));
-            }
+        if ($user === null) {
+            $output->writeln('<error>User jssekamatte not found.</error>');
+            return Command::FAILURE;
         }
 
-        $output->writeln(sprintf('<info>Done. Sent: %d, Failed: %d, Skipped (no dept): %d</info>', $sent, $failed, $skipped));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
+        $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri
+
+        // Calculate current week Monday
+        $currentWeekStart = $now->modify('monday this week')->setTime(0, 0, 0);
+
+        // Check if user has submitted for the current week
+        $submission = $this->repository->findForUserAndWeek($user, $currentWeekStart);
+
+        if ($submission !== null && ($submission->isSubmitted() || $submission->isSupervisorApproved() || $submission->isManagerApproved() || $submission->isHrApproved() || $submission->isApproved())) {
+            $output->writeln(sprintf('<info>%s has already submitted for week of %s. Skipping.</info>', $user->getDisplayName(), $currentWeekStart->format('d/m/Y')));
+            return Command::SUCCESS;
+        }
+
+        // Calculate week date range for the email
+        $weekEnd = $currentWeekStart->modify('+4 days');
+
+        try {
+            $this->mailer->sendSubmissionReminder($user);
+            $output->writeln(sprintf('<info>Reminder sent to %s (%s) for week %s - %s</info>',
+                $user->getDisplayName(),
+                $user->getEmail(),
+                $currentWeekStart->format('d/m/Y'),
+                $weekEnd->format('d/m/Y')
+            ));
+        } catch (\Exception $e) {
+            $output->writeln(sprintf('<error>Failed to send to %s: %s</error>', $user->getUserIdentifier(), $e->getMessage()));
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }

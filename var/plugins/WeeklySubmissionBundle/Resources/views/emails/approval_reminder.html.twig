@@ -1,0 +1,66 @@
+{% extends 'emails/layout.html.twig' %}
+
+{% block title %}Pending Approvals Reminder{% endblock %}
+
+{% block body %}
+<p>
+    Dear <strong>{{ supervisor.displayName }}</strong>,
+</p>
+<p>
+    This is a reminder that you have <strong>{{ submissions|length }}</strong> weekly submission(s) pending your action for the week of <strong>{{ weekStart }} - {{ weekEnd }}</strong>.
+</p>
+
+{% set pendingApproval = submissions|filter(s => s.status == 'submitted') %}
+{% set awaitingFinal = submissions|filter(s => s.status == 'supervisor_approved') %}
+
+{% if pendingApproval|length > 0 %}
+<p><strong>Pending My Approval</strong></p>
+<table style="width:100%; border-collapse: collapse; margin: 10px 0 20px 0;">
+    <thead>
+        <tr style="background-color: #f4f4f4;">
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">#</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Staff Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sub in pendingApproval %}
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ loop.index }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ sub.staffName }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if awaitingFinal|length > 0 %}
+<p><strong>Awaiting Final Approval</strong></p>
+<table style="width:100%; border-collapse: collapse; margin: 10px 0 20px 0;">
+    <thead>
+        <tr style="background-color: #f4f4f4;">
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">#</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Staff Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sub in awaitingFinal %}
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ loop.index }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ sub.staffName }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<p>
+    <a href="{{ url('weekly_submission_supervisor_pending', {_locale: 'en'}) }}">Click here to review and approve</a>
+</p>
+<hr>
+<p><strong>Approval Rules:</strong></p>
+<ul>
+    <li>Supervisors must approve or reject submissions within a reasonable time.</li>
+    <li>Once you approve, the submission moves to the next approval level (if applicable).</li>
+</ul>
+<p>Thank you.</p>
+{% endblock %}

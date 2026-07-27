@@ -84,6 +84,12 @@ final class MenuSubscriber implements EventSubscriberInterface
             $weeklySubmission->addChild($overtimeItem);
         }
 
+        if ($auth->isGranted('ROLE_ADMIN')) {
+            $weeklySubmission->addChild(
+                new MenuItemModel('weekly_submission_admin_approval_rights', 'Approval Rights', 'weekly_submission_admin_approval_rights', [], 'sitemap')
+            );
+        }
+
         if ($weeklySubmission->hasChildren()) {
             $menu->addChild($weeklySubmission);
         }

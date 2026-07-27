@@ -69,13 +69,18 @@ class WeeklySubmissionRepository extends EntityRepository
             SELECT DISTINCT ut_member.user_id
             FROM kimai2_users_teams ut_member
             JOIN kimai2_users_teams ut_lead ON ut_lead.team_id = ut_member.team_id
+            JOIN kimai2_users u ON u.id = ut_member.user_id
             WHERE ut_lead.user_id = :user_id6 AND ut_lead.teamlead = 1
+            AND NOT EXISTS (SELECT 1 FROM kimai2_departments d WHERE d.director_id = ut_member.user_id)
+            AND u.roles NOT LIKE '%ROLE_DIRECTOR%'
             UNION
             SELECT DISTINCT ut.user_id
             FROM kimai2_users_teams ut
             JOIN kimai2_departments_teams dt ON dt.team_id = ut.team_id
             JOIN kimai2_departments d ON d.id = dt.department_id
             WHERE d.director_id = :user_id2
+            AND NOT EXISTS (SELECT 1 FROM kimai2_departments d2 WHERE d2.director_id = ut.user_id)
+            AND ut.user_id != :user_id2
         ";
 
         $stmt = $conn->executeQuery($sql, [
@@ -100,18 +105,26 @@ class WeeklySubmissionRepository extends EntityRepository
             UNION
             SELECT ut2.user_id FROM kimai2_users_teams ut1
             JOIN kimai2_users_teams ut2 ON ut2.team_id = ut1.team_id
+            JOIN kimai2_users u2 ON u2.id = ut2.user_id
             WHERE ut1.user_id = :user_id2 AND ut1.teamlead = 1
+            AND NOT EXISTS (SELECT 1 FROM kimai2_departments d WHERE d.director_id = ut2.user_id)
+            AND u2.roles NOT LIKE '%ROLE_DIRECTOR%'
             UNION
             SELECT ut2.user_id FROM kimai2_users_teams ut1
             JOIN kimai2_users_teams ut2 ON ut2.team_id = ut1.team_id
+            JOIN kimai2_users u3 ON u3.id = ut2.user_id
             WHERE ut1.user_id = :user_id3
             AND (:user_id4 IN (SELECT id FROM kimai2_users WHERE roles LIKE '%ROLE_TEAMLEAD%' OR roles LIKE '%ROLE_DIRECTOR%' OR title LIKE '%Manager%' OR title LIKE '%Director%'))
+            AND NOT EXISTS (SELECT 1 FROM kimai2_departments d WHERE d.director_id = ut2.user_id)
+            AND u3.roles NOT LIKE '%ROLE_DIRECTOR%'
             UNION
             SELECT DISTINCT ut.user_id
             FROM kimai2_users_teams ut
             JOIN kimai2_departments_teams dt ON dt.team_id = ut.team_id
             JOIN kimai2_departments d ON d.id = dt.department_id
             WHERE d.director_id = :user_id5
+            AND NOT EXISTS (SELECT 1 FROM kimai2_departments d2 WHERE d2.director_id = ut.user_id)
+            AND ut.user_id != :user_id5
         ";
 
         $stmt = $conn->executeQuery($sql, [
@@ -200,9 +213,12 @@ class WeeklySubmissionRepository extends EntityRepository
         $sql = "SELECT DISTINCT ut_member.user_id
                 FROM kimai2_users_teams ut_member
                 JOIN kimai2_users_teams ut_lead ON ut_lead.team_id = ut_member.team_id
+                JOIN kimai2_users u ON u.id = ut_member.user_id
                 WHERE ut_lead.user_id = :user_id
                 AND ut_lead.teamlead = 1
-                AND ut_member.user_id != :user_id2";
+                AND ut_member.user_id != :user_id2
+                AND NOT EXISTS (SELECT 1 FROM kimai2_departments d WHERE d.director_id = ut_member.user_id)
+                AND u.roles NOT LIKE '%ROLE_DIRECTOR%'";
 
         $stmt = $conn->executeQuery($sql, [
             'user_id' => $userId,
@@ -586,7 +602,12 @@ class WeeklySubmissionRepository extends EntityRepository
 
         // Senior Officers — department director is the final approver
         if ($this->isSeniorOfficer($staffUser)) {
-            return $this->getDirectorForUser($staffUser);
+            $director = $this->getDirectorForUser($staffUser);
+            $supervisorId = $staffUser->getSupervisor()?->getId();
+            if ($director !== null && $supervisorId !== null && $director->getId() === $supervisorId) {
+                return null;
+            }
+            return $director;
         }
 
         // Officers & below — team lead/manager is the final approver
@@ -624,7 +645,17 @@ class WeeklySubmissionRepository extends EntityRepository
         $stmt = $conn->executeQuery($sql, ['user_id' => $userId]);
         $userIds = array_map('intval', $stmt->fetchFirstColumn());
 
-        // All directors can select the ED as supervisor
+        // Always include the user's own department director (may not be in any team)
+        $ownDirectorSql = "SELECT d.director_id FROM kimai2_departments_teams dt
+                           JOIN kimai2_departments d ON d.id = dt.department_id
+                           JOIN kimai2_users_teams ut ON ut.team_id = dt.team_id
+                           WHERE ut.user_id = :user_id AND d.director_id IS NOT NULL";
+        $ownDirectorStmt = $conn->executeQuery($ownDirectorSql, ['user_id' => $userId]);
+        foreach ($ownDirectorStmt->fetchFirstColumn() as $dirId) {
+            $userIds[] = (int) $dirId;
+        }
+
+        // All directors can also select the ED as supervisor
         if ($user->isDirector()) {
             $edSql = "SELECT director_id FROM kimai2_departments WHERE name = 'Executive Director''s Office' AND director_id IS NOT NULL";
             $edId = $conn->fetchOne($edSql);
@@ -709,6 +740,27 @@ class WeeklySubmissionRepository extends EntityRepository
                 AND d.director_id = :user_id";
 
         return (int) $conn->fetchOne($sql, ['user_id' => $user->getId()]) > 0;
+    }
+
+    /**
+     * Get the Executive Director user entity.
+     */
+    public function getEdUser(): ?User
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = "SELECT director_id FROM kimai2_departments
+                WHERE name = 'Executive Director''s Office'
+                AND director_id IS NOT NULL
+                LIMIT 1";
+
+        $directorId = $conn->fetchOne($sql);
+
+        if ($directorId === false) {
+            return null;
+        }
+
+        return $this->getEntityManager()->getRepository(User::class)->find((int) $directorId);
     }
 
     public function countPendingNotifications(User $user): array
