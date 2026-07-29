@@ -30,7 +30,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Weekly submission from %s (%s - %s)', $submission->getUser()->getDisplayName(), $start, $end))
+            ->subject(sprintf('Weekly submission from %s (%s - %s)', $submission->getUser()->getDisplayName(), $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($supervisor, $email);
@@ -49,7 +49,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Supervisor approved: %s (%s - %s) awaiting your decision', $submission->getUser()->getDisplayName(), $start, $end))
+            ->subject(sprintf('Supervisor approved: %s (%s - %s) awaiting your decision', $submission->getUser()->getDisplayName(), $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($nextApprover, $email);
@@ -67,7 +67,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Your weekly submission (%s - %s) was approved', $start, $end))
+            ->subject(sprintf('Your weekly submission (%s - %s) was approved', $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($submission->getUser(), $email);
@@ -86,7 +86,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Your weekly submission (%s - %s) has been fully approved', $start, $end))
+            ->subject(sprintf('Your weekly submission (%s - %s) has been fully approved', $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($submission->getUser(), $email);
@@ -104,7 +104,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Your weekly submission (%s - %s) needs attention', $start, $end))
+            ->subject(sprintf('Your weekly submission (%s - %s) needs attention', $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($submission->getUser(), $email);
@@ -122,7 +122,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Manager requires changes to %s\'s weekly submission (%s - %s)', $submission->getUser()->getDisplayName(), $start, $end))
+            ->subject(sprintf('Manager requires changes to %s\'s weekly submission (%s - %s)', $submission->getUser()->getDisplayName(), $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($supervisor, $email);
@@ -141,7 +141,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Overtime approval required: %s (%s - %s) - %d overtime hours', $submission->getUser()->getDisplayName(), $start, $end, $submission->getOvertimeHours()))
+            ->subject(sprintf('Overtime approval required: %s (%s - %s) - %d overtime hours', $submission->getUser()->getDisplayName(), $start, $end, $submission->getOvertimeHours()))
             ->html($html);
 
         $this->mailer->sendToUser($managerHr, $email);
@@ -159,7 +159,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Manager HR approved your overtime submission (%s - %s) - pending HR final approval', $start, $end))
+            ->subject(sprintf('Manager HR approved your overtime submission (%s - %s) - pending HR final approval', $start, $end))
             ->html($html);
 
         $this->mailer->sendToUser($submission->getUser(), $email);
@@ -171,29 +171,16 @@ class WeeklySubmissionMailer
         $weekStart = $now->modify('monday this week')->setTime(0, 0, 0);
         $weekEnd = $weekStart->modify('+4 days');
 
+        $html = $this->twig->render('@WeeklySubmission/emails/submission_reminder.html.twig', [
+            'user' => $user,
+            'weekStart' => $weekStart->format('d M Y'),
+            'weekEnd' => $weekEnd->format('d M Y'),
+        ]);
+
         $email = (new Email())
             ->subject('Timesheet Submission Reminder - Week of ' . $weekStart->format('d M Y'))
-            ->to(new \Symfony\Component\Mime\Address($user->getEmail(), $user->getDisplayName() ?? ''))
             ->replyTo('noreply@timesheet.ppda.go.ug')
-            ->html(
-                sprintf(
-                     '<p>Dear %s,</p>
-                     <p>This is a friendly reminder that you have <strong>not yet submitted</strong> your weekly timesheet.</p>
-                     <p><strong>Week:</strong> %s - %s</p>
-                     <p>Please submit your timesheet as soon as possible.</p>
-                     <hr>
-                     <p><strong>Submission Rules:</strong></p>
-                     <ul>
-                         <li>Timesheets for the same week can only be submitted to supervisors on <strong>Fridays</strong> and <strong>Mondays</strong>.</li>
-                         <li>You may submit timesheets for any eligible past week within the current month.</li>
-                         <li>Previous month weeks can only be submitted within the <strong>first 5 days</strong> of the new month.</li>
-                     </ul>
-                     <p>Thank you.</p>',
-                    htmlspecialchars($user->getDisplayName() ?? $user->getUserIdentifier()),
-                    $weekStart->format('d M Y'),
-                    $weekEnd->format('d M Y')
-                )
-            );
+            ->html($html);
 
         $this->mailer->sendToUser($user, $email);
     }
@@ -208,7 +195,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] Approval Reminder - %d pending submission(s) for week %s - %s', count($staffList), $weekStart, $weekEnd))
+            ->subject(sprintf('Approval Reminder - %d pending submission(s) for week %s - %s', count($staffList), $weekStart, $weekEnd))
             ->html($html);
 
         $this->mailer->sendToUser($supervisor, $email);
@@ -223,7 +210,7 @@ class WeeklySubmissionMailer
         ]);
 
         $email = (new Email())
-            ->subject(sprintf('[Timesheet] %s submitted %d weekly timesheet(s)', $staff->getDisplayName(), $weekCount))
+            ->subject(sprintf('%s submitted %d weekly timesheet(s)', $staff->getDisplayName(), $weekCount))
             ->html($html);
 
         $this->mailer->sendToUser($supervisor, $email);

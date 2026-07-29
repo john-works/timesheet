@@ -16,54 +16,38 @@
             {% if form.begin_date is defined %}
                 <div class="mb-3 row" id="leave-row-begin">
                     <label class="col-form-label col-sm-2 required" for="{{ form.vars.name }}_begin_date">
-                        <span class="leave-label-default">{{ 'begin'|trans }}</span>
+                        <span class="leave-label-default">Start Date</span>
                         <span class="leave-label-leave" style="display:none">Start Date</span>
                     </label>
-                    <div class="col-sm-5">
+                    <div class="col-sm-6">
                         {{ form_widget(form.begin_date, {'label': false}) }}
                         {{ form_errors(form.begin_date, {'label': false}) }}
                     </div>
-                    <div class="col-sm-5">
-                        <div id="leave-col-time">
-                            {{ form_widget(form.begin_time, {'label': false}) }}
-                            {{ form_errors(form.begin_time, {'label': false}) }}
-                        </div>
+                    <div class="col-sm-4">
                         <div id="leave-col-enddate" style="display:none">
                             <input type="date" id="leaveEnd" name="leaveEnd" class="form-control" placeholder="End date">
                         </div>
                     </div>
                 </div>
+                <div class="mb-3 row">
+                    <label class="col-form-label col-sm-2 required" for="{{ form.vars.name }}_begin_time">Start Time</label>
+                    <div class="col-sm-6">
+                        {{ form_widget(form.begin_time, {'label': false}) }}
+                        {{ form_errors(form.begin_time, {'label': false}) }}
+                    </div>
+                </div>
             {% endif %}
             <div id="leave-row-endtime" class="leave-time-field">
-            {% if form.end_time is defined or form.duration is defined %}
+            {% if form.end_time is defined %}
                 <div class="mb-3 row">
-                    <label class="col-form-label col-sm-2" for="{{ form.vars.name }}_duration">
-                        {% if form.duration is defined %}
-                            {{ 'duration'|trans }}
-                            {% if form.end_time is defined %} / {% endif %}
-                        {% endif %}
-                        {% if form.end_time is defined %}
-                            {{ 'endtime'|trans }}
-                        {% endif %}
+                    <label class="col-form-label col-sm-2 required" for="{{ form.vars.name }}_end_time">
+                        End Time
                     </label>
-                    {% set size = form.duration is defined and form.end_time is defined ? 5 : 10 %}
-                    {% if form.duration is defined %}
-                    <div class="col-sm-{{ size }}">
-                        {{ form_widget(form.duration, {'label': false}) }}
-                        {{ form_errors(form.duration, {'label': false}) }}
-                    </div>
-                    {% endif %}
-                    {% if form.end_time is defined %}
-                    <div class="col-sm-{{ size }}">
+                    <div class="col-sm-6">
                         {{ form_widget(form.end_time, {'label': false}) }}
                         {{ form_errors(form.end_time, {'label': false}) }}
                     </div>
-                    {% endif %}
                 </div>
-            {% else %}
-                {% if form.duration is defined %}
-                    {{ form_row(form.duration, {'row_attr': {'class': 'mb-3 ' ~ form.vars.name ~ '_row_' ~ form.duration.vars.name}}) }}
-                {% endif %}
             {% endif %}
             </div>
             <div id="leave-row-days" style="display:none" class="mb-3 row">
@@ -166,6 +150,9 @@
                 {% endembed %}
             {% endif %}
 
+            {% if form.duration is defined %}
+                <div style="display:none">{{ form_row(form.duration) }}</div>
+            {% endif %}
             {{ form_rest(form) }}
 
             <script>

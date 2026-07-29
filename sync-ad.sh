@@ -2,7 +2,7 @@
 # AD/LDAP Auto-Sync Script
 # Runs the Kimai LDAP sync command and logs output
 
-APP_DIR="/var/www/html/timesheet"
+APP_DIR="/var/www/html/timesheet_new"
 LOG_DIR="/var/log/kimai"
 LOG_FILE="$LOG_DIR/ldap-sync.log"
 
@@ -21,7 +21,7 @@ echo "========================================" >> "$LOG_FILE"
 echo "LDAP Sync started: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 
 cd "$APP_DIR"
-php bin/console kimai:ldap:sync --skip-disabled 2>&1 | tee -a "$LOG_FILE"
+php bin/console kimai:ldap:sync --skip-disabled --skip-teams 2>&1 | tee -a "$LOG_FILE"
 
 EXIT_CODE=${PIPESTATUS[0]}
 

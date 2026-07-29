@@ -11,7 +11,5 @@
     <strong>Total hours:</strong> {{ (submission.totalDuration / 3600)|number_format(2) }}h<br>
     <strong>Overtime hours:</strong> {{ submission.overtimeHours }}h
 </p>
-<p>
-    <a href="{{ url('weekly_submission_supervisor_pending') }}">Click here to review and approve</a>
-</p>
+
 {% endblock %}

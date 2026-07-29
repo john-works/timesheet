@@ -187,6 +187,12 @@ final class MenuSubscriber implements EventSubscriberInterface
             );
         }
 
+        if ($auth->isGranted('system_configuration')) {
+            $menu->addChild(
+                new MenuItemModel('ldap_sync', 'LDAP Sync', 'ldap_sync', [], 'refresh')
+            );
+        }
+
         $this->addDivider($menu);
     }
 }

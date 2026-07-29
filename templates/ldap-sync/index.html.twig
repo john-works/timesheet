@@ -1,0 +1,70 @@
+{% extends 'base.html.twig' %}
+
+{% block main %}
+
+    {% embed '@theme/embeds/card.html.twig' %}
+        {% block box_title %}LDAP Sync{% endblock %}
+        {% block box_body %}
+            <p>Click the button below to manually trigger an AD/LDAP sync. This imports users, creates departments, and sets up teams.</p>
+            <p>The system is also configured to auto-sync every 5 minutes via cron.</p>
+            <a href="{{ path('ldap_sync_trigger', {'token': csrf_token('ldap_sync.trigger')}) }}" class="btn btn-primary confirmation-link" data-question="Run LDAP sync now?">
+                Run LDAP Sync Now
+            </a>
+        {% endblock %}
+    {% endembed %}
+
+    {% if result is not null %}
+        {% embed '@theme/embeds/collapsible.html.twig' with {open: result.success} %}
+            {% block title %}
+                {% if result.success %}
+                    Sync Result — Success
+                {% else %}
+                    Sync Result — Failed
+                {% endif %}
+            {% endblock %}
+            {% block body_class %}p-0{% endblock %}
+            {% block body %}
+                <table class="table table-hover">
+                    <tr>
+                        <th>Users created</th>
+                        <td>{{ result.stats.users_created }}</td>
+                    </tr>
+                    <tr>
+                        <th>Users updated</th>
+                        <td>{{ result.stats.users_updated }}</td>
+                    </tr>
+                    <tr>
+                        <th>Users skipped</th>
+                        <td>{{ result.stats.users_skipped }}</td>
+                    </tr>
+                    <tr>
+                        <th>Departments created</th>
+                        <td>{{ result.stats.departments_created }}</td>
+                    </tr>
+                    <tr>
+                        <th>Teams created</th>
+                        <td>{{ result.stats.teams_created }}</td>
+                    </tr>
+                    <tr>
+                        <th>Team leads set</th>
+                        <td>{{ result.stats.teamleads_set }}</td>
+                    </tr>
+                </table>
+                {% if result.messages|length > 0 %}
+                    <pre class="p-3 mb-0" style="max-height: 400px; overflow-y: auto;">{% for msg in result.messages %}{{ msg }}
+{% endfor %}</pre>
+                {% endif %}
+            {% endblock %}
+        {% endembed %}
+    {% endif %}
+
+    {% if log_content is not empty %}
+        {% embed '@theme/embeds/collapsible.html.twig' %}
+            {% block title %}Sync Log (cron) — last {{ log_content|split('\n')|length }} lines{% endblock %}
+            {% block body %}
+                <pre style="max-height: 400px; overflow-y: auto;">{{ log_content }}</pre>
+            {% endblock %}
+        {% endembed %}
+    {% endif %}
+
+{% endblock %}

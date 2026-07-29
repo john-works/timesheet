@@ -4,7 +4,15 @@
 
 {% block body %}
 <p>Dear {{ user.displayName }},</p>
-<p>This is a reminder to submit your timesheet for this week.</p>
-<p>Please ensure all your timesheet entries are submitted by <strong>Thursday 4:00 PM</strong>.</p>
+<p>This is a friendly reminder that you have <strong>not yet submitted</strong> your weekly timesheet.</p>
+<p><strong>Week:</strong> {{ weekStart }} - {{ weekEnd }}</p>
+<p>Please submit your timesheet as soon as possible.</p>
+<hr>
+<p><strong>Submission Rules:</strong></p>
+<ul>
+    <li>Timesheets for the same week can only be submitted to supervisors on <strong>Fridays</strong> and <strong>Mondays</strong>.</li>
+    <li>You may submit timesheets for any eligible past week within the current month.</li>
+    <li>Previous month weeks can only be submitted within the <strong>first 5 days</strong> of the new month.</li>
+</ul>
 <p>Thank you.</p>
 {% endblock %}
