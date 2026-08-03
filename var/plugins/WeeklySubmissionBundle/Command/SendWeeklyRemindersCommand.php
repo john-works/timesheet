@@ -36,6 +36,10 @@ class SendWeeklyRemindersCommand extends Command
         $currentWeekStart = $now->modify('monday this week')->setTime(0, 0, 0);
         $weekEnd = $currentWeekStart->modify('+4 days');
 
+        // Monday reminders target last week's timesheet; other days target the current week
+        $dayOfWeek = (int) $now->format('N');
+        $targetWeekStart = $dayOfWeek === 1 ? $currentWeekStart->modify('-7 days') : $currentWeekStart;
+
         // Get all active non-system users
         $allUsers = $this->userRepository->findAll();
         $dryRun = $input->getOption('dry-run');
@@ -86,8 +90,8 @@ class SendWeeklyRemindersCommand extends Command
                 continue;
             }
 
-            // Check if user has submitted for the current week
-            $submission = $this->repository->findForUserAndWeek($user, $currentWeekStart);
+            // Check if user has submitted for the target week
+            $submission = $this->repository->findForUserAndWeek($user, $targetWeekStart);
 
             if ($submission !== null && (
                 $submission->isSubmitted()

@@ -236,6 +236,15 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
     #[Serializer\Groups(['User_Entity'])]
     #[OA\Property(ref: '#/components/schemas/User')]
     private ?User $supervisor = null;
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'step2_approver_id', nullable: true, onDelete: 'SET NULL')]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['User_Entity'])]
+    private ?User $step2Approver = null;
+    #[ORM\Column(name: 'workflow_type', type: Types::STRING, length: 20, nullable: true)]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['User_Entity'])]
+    private ?string $workflowType = null;
 
     /**
      * @var Collection<User>
@@ -1608,6 +1617,38 @@ class User implements UserInterface, EquatableInterface, ThemeUserInterface, Pas
     public function setSupervisor(?User $supervisor): void
     {
         $this->supervisor = $supervisor;
+    }
+
+    public function getStep2Approver(): ?User
+    {
+        return $this->step2Approver;
+    }
+
+    public function setStep2Approver(?User $step2Approver): void
+    {
+        $this->step2Approver = $step2Approver;
+    }
+
+    public function getWorkflowType(): ?string
+    {
+        return $this->workflowType;
+    }
+
+    public function setWorkflowType(?string $workflowType): void
+    {
+        $this->workflowType = $workflowType;
+    }
+
+    public function hasTwoStepWorkflow(): bool
+    {
+        if ($this->workflowType === 'two-step') {
+            return true;
+        }
+        if ($this->workflowType === 'single') {
+            return false;
+        }
+
+        return $this->step2Approver !== null;
     }
 
     /**

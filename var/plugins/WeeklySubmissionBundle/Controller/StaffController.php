@@ -116,7 +116,7 @@ final class StaffController extends AbstractController
 
         $lastWeekStart = $currentWeekStart->modify('-7 days');
         $lastWeekSubmission = $this->repository->findForUserAndWeek($user, $lastWeekStart);
-        $lastWeekNotSubmitted = ($lastWeekSubmission === null || !$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved());
+        $lastWeekNotSubmitted = ($lastWeekSubmission === null || (!$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved() && !$lastWeekSubmission->isHrApproved()));
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
@@ -261,20 +261,8 @@ final class StaffController extends AbstractController
         $isOvertime = $totalDuration > $overtimeThreshold;
         $overtimeHours = $isOvertime ? (int) (($totalDuration - $overtimeThreshold) / 3600) : 0;
 
-        $selectedSupervisorId = $request->request->get('supervisor_id');
-        if ($selectedSupervisorId !== null && $selectedSupervisorId !== '') {
-            $selectedSupervisor = $this->userRepository->find((int) $selectedSupervisorId);
-            if ($selectedSupervisor !== null && $selectedSupervisor->isEnabled()) {
-                $deptUserIds = $this->repository->getDepartmentUserIds($user);
-                if (in_array((int) $selectedSupervisorId, $deptUserIds, true)) {
-                    $user->setSupervisor($selectedSupervisor);
-                    $this->entityManager->persist($user);
-                }
-            }
-        }
-
         if ($user->getSupervisor() === null) {
-            $this->addFlash('error', 'You must select a supervisor before submitting.');
+            $this->addFlash('error', 'You must have a Step 1 approver assigned before submitting. Please contact your administrator.');
             return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
@@ -546,20 +534,8 @@ final class StaffController extends AbstractController
             $isOvertime = $totalDuration > $overtimeThreshold;
             $overtimeHours = $isOvertime ? (int) (($totalDuration - $overtimeThreshold) / 3600) : 0;
 
-            $selectedSupervisorId = $request->request->get('supervisor_id');
-            if ($selectedSupervisorId !== null && $selectedSupervisorId !== '') {
-                $selectedSupervisor = $this->userRepository->find((int) $selectedSupervisorId);
-                if ($selectedSupervisor !== null && $selectedSupervisor->isEnabled()) {
-                    $deptUserIds = $this->repository->getDepartmentUserIds($user);
-                    if (in_array((int) $selectedSupervisorId, $deptUserIds, true)) {
-                        $user->setSupervisor($selectedSupervisor);
-                        $this->entityManager->persist($user);
-                    }
-                }
-            }
-
             if ($user->getSupervisor() === null) {
-                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': No supervisor selected';
+                $errors[] = $weekStart->format('M d') . '-' . $weekEnd->format('d') . ': No Step 1 approver assigned';
                 continue;
             }
 

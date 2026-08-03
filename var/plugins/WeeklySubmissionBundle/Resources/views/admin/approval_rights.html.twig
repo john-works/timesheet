@@ -16,11 +16,10 @@
                     <div class="col-12">
                         <h6>Approval Workflow Rules:</h6>
                         <ul class="list-unstyled mb-0" style="font-size:0.85rem; line-height: 2;">
-                            <li><span class="badge bg-secondary" style="color:#fff !important">Regional</span> Single-level: Director/ED approves directly</li>
-                            <li><span class="badge bg-secondary" style="color:#fff !important">Director</span> Single-level: ED approves directly</li>
-                            <li><span class="badge bg-secondary" style="color:#fff !important">Team Lead/Manager</span> Single-level: Supervisor approves directly</li>
-                            <li><span class="badge bg-warning" style="color:#000 !important">Senior Officer</span> 2-step: Step 1 = Supervisor (team lead), Step 2 = Department Director only</li>
-                            <li><span class="badge bg-info" style="color:#fff !important">Officer & Below</span> 2-step: Step 1 = Supervisor, Step 2 = Team Lead/Manager</li>
+                            <li><span class="badge bg-secondary" style="color:#fff !important">Workflow</span> Choose <strong>Single-level</strong> (Step 1 only) or <strong>2-Step</strong> (Step 1 + Step 2) for each user.</li>
+                            <li><span class="badge bg-secondary" style="color:#fff !important">Step 1 Approver</span> Approves first (submitted status).</li>
+                            <li><span class="badge bg-warning" style="color:#000 !important">Step 2 Approver</span> Used only for <strong>2-Step</strong> workflows (supervisor_approved status). Ignored for Single-level. Must be a different user from the Step 1 approver.</li>
+                            <li><span class="badge bg-danger" style="color:#fff !important">Missing</span> Rows are highlighted red when a user has no Step 1 approver, or a 2-step workflow is missing its Step 2 approver.</li>
                         </ul>
                     </div>
                 </div>
@@ -48,7 +47,7 @@
                             {% set currentDept = '' %}
                             {% for row in approvalData %}
                             {% set staff = row.user %}
-                            {% set isMissing = (row.workflowType == 'two-step' and row.step1 is null) or (row.category == 'Senior Officer' and row.step2 is null) %}
+                            {% set isMissing = row.step1 is null or (row.workflowType == 'two-step' and row.step2 is null) %}
 
                             {% if row.department != currentDept %}
                                 {% set currentDept = row.department %}
@@ -88,39 +87,42 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if row.workflowType == 'single' %}
-                                        <span class="badge bg-secondary" style="color:#fff !important">Single-level</span>
-                                    {% else %}
-                                        <span class="badge bg-warning" style="color:#000 !important">2-Step</span>
-                                    {% endif %}
+                                    <form action="{{ path('weekly_submission_admin_approval_rights_update') }}" method="post" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="user_id" value="{{ staff.id }}">
+                                        <select name="workflow_type" class="form-control form-control-sm" style="min-width:130px">
+                                            <option value="single" {% if row.workflowType == 'single' %}selected{% endif %}>Single-level</option>
+                                            <option value="two-step" {% if row.workflowType == 'two-step' %}selected{% endif %}>2-Step</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Save Workflow"><i class="fas fa-save"></i></button>
+                                    </form>
                                 </td>
                                 <td>
                                     <form action="{{ path('weekly_submission_admin_approval_rights_update') }}" method="post" class="d-flex gap-1 align-items-center">
                                         <input type="hidden" name="user_id" value="{{ staff.id }}">
-                                        <select name="supervisor_id" class="form-control form-control-sm" style="min-width:160px" required>
+                                        <select name="supervisor_id" class="form-control form-control-sm" style="min-width:160px">
                                             <option value="">-- None --</option>
                                             {% for u in allUsers %}
-                                                {% if u.id != staff.id %}
+                                                {% if u.id != staff.id and (row.step2 is null or u.id != row.step2.id) %}
                                                 <option value="{{ u.id }}" {% if row.step1 and row.step1.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
                                                 {% endif %}
                                             {% endfor %}
                                         </select>
-                                        <button type="submit" class="btn btn-primary btn-sm" title="Save"><i class="fas fa-save"></i></button>
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Save Step 1"><i class="fas fa-save"></i></button>
                                     </form>
                                 </td>
                                 <td>
-                                    {% if row.workflowType == 'single' %}
-                                        <small class="text-muted">-</small>
-                                    {% elseif row.step2 %}
-                                        <span class="text-success"><i class="fas fa-check-circle"></i> {{ row.step2.displayName }}</span>
-                                        {% if row.category == 'Senior Officer' %}
-                                        <br><small class="text-muted">(Department Director)</small>
-                                        {% else %}
-                                        <br><small class="text-muted">(Team Lead/Manager)</small>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Not assigned</span>
-                                    {% endif %}
+                                    <form action="{{ path('weekly_submission_admin_approval_rights_update') }}" method="post" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="user_id" value="{{ staff.id }}">
+                                        <select name="step2_approver_id" class="form-control form-control-sm" style="min-width:160px">
+                                            <option value="">-- None (single-level) --</option>
+                                            {% for u in allUsers %}
+                                                {% if u.id != staff.id and (row.step1 is null or u.id != row.step1.id) %}
+                                                <option value="{{ u.id }}" {% if row.step2 and row.step2.id == u.id %}selected{% endif %}>{{ u.displayName }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Save Step 2"><i class="fas fa-save"></i></button>
+                                    </form>
                                 </td>
                                 <td>
                                     {% if row.workflowType == 'single' %}
@@ -156,26 +158,33 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.filterApprovalTable = function() {
-            var filter = document.getElementById('approvalSearch').value.toLowerCase();
+            var filter = document.getElementById('approvalSearch').value.toLowerCase().trim();
             var table = document.getElementById('approvalTable');
             if (!table) return;
-            var rows = Array.from(table.tBodies[0].rows);
+            var tbody = table.tBodies[0];
+            var rows = Array.from(tbody.rows);
 
             rows.forEach(function(row) {
                 if (row.classList.contains('table-active')) return;
-                var text = row.textContent.toLowerCase();
-                row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+                var cells = row.querySelectorAll('td');
+                var text = '';
+                if (cells[0]) text += cells[0].textContent + ' ';
+                if (cells[1]) text += cells[1].textContent + ' ';
+                var prev = row.previousElementSibling;
+                while (prev && !prev.classList.contains('table-active')) prev = prev.previousElementSibling;
+                if (prev) text += prev.textContent + ' ';
+                row.style.display = text.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
             });
 
-            var headers = table.tBodies[0].querySelectorAll('tr.table-active');
-            headers.forEach(function(header) {
-                var next = header.nextElementSibling;
+            rows.forEach(function(row) {
+                if (!row.classList.contains('table-active')) return;
+                var next = row.nextElementSibling;
                 var hasVisible = false;
                 while (next && !next.classList.contains('table-active')) {
                     if (next.style.display !== 'none') { hasVisible = true; break; }
                     next = next.nextElementSibling;
                 }
-                header.style.display = (hasVisible || filter === '') ? '' : 'none';
+                row.style.display = (hasVisible || filter === '') ? '' : 'none';
             });
         };
     });

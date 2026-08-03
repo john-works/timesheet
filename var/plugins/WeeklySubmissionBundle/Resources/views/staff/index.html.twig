@@ -83,18 +83,11 @@
                 {% if submission is not null %}
                     <div class="mb-3">
                         <strong>Status:</strong>
-                        {% if submission.isDraft %}
-                            <span class="badge bg-secondary" style="color:#fff !important;">Draft</span>
-                        {% elseif submission.isSubmitted %}
-                            <span class="badge bg-primary" style="color: #fff !important;">Submitted</span>
-                        {% elseif submission.isSupervisorApproved %}
-                            <span class="badge bg-info" style="color: #fff !important;">Supervisor Approved</span>
-                        {% elseif submission.isManagerApproved %}
-                            <span class="badge bg-warning" style="color: #fff !important;">Manager Approved - Pending HR</span>
-                        {% elseif submission.isApproved %}
-                            <span class="badge bg-success" style="color: #fff !important;">Approved</span>
-                        {% elseif submission.isRejected %}
-                            <span class="badge bg-danger" style="color: #fff !important;">Rejected</span>
+                        {% set lvl = submission_level(submission) %}
+                        {% if lvl.level is not null %}
+                            <span class="badge {{ lvl.class }}" style="color: #fff !important;">Level {{ lvl.level }} of {{ lvl.total }} — {{ lvl.label }}{% if lvl.approver %}: {{ lvl.approver }}{% endif %}</span>
+                        {% else %}
+                            <span class="badge {{ lvl.class }}" style="color: #fff !important;">{{ lvl.label }}</span>
                         {% endif %}
                         {% if submission.isOvertime %}
                             <span class="badge bg-warning" style="color: #fff !important;">Overtime</span>
@@ -162,9 +155,9 @@
                     {% elseif submission.isApproved %}
                         Fully Approved
                     {% elseif submission.isSupervisorApproved %}
-                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (supervisor.supervisor ? supervisor.supervisor.displayName : 'Unassigned') }}
+                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (app.user.hasTwoStepWorkflow and app.user.step2Approver ? app.user.step2Approver.displayName : '-') }}
                     {% elseif submission.isSubmitted %}
-                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (supervisor ? supervisor.displayName : 'Unassigned') }}
+                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (supervisor ? supervisor.displayName : '-') }}
                     {% endif %}
                 </div>
 
@@ -177,7 +170,7 @@
                 {% set otherRejectedWeeks = rejectedWeeks|filter(r => r.weekStart|date('Y-m-d') != weekStart|date('Y-m-d')) %}
                 {% set totalResubmitWeeks = otherRejectedWeeks|length + 1 %}
                 {% if submission.isDraft %}
-                    {% if canSubmit %}
+                    {% if canSubmit and lastWeekNotSubmitted %}
                         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
                             <i class="fas fa-paper-plane"></i> {% if totalWeeksToSubmit > 1 %}Submit All Weeks ({{ totalWeeksToSubmit }}){% else %}Submit to Supervisor{% endif %}
                         </button>
@@ -186,7 +179,11 @@
                             <i class="fas fa-paper-plane"></i> Submit to Supervisor
                         </button>
                         <div class="text-muted small mt-2">
-                            <i class="fas fa-clock"></i> Submission is only available on  Friday Only
+                            {% if canSubmit and not lastWeekNotSubmitted %}
+                                <i class="fas fa-check-circle"></i> You have already submitted for last week.
+                            {% else %}
+                                <i class="fas fa-clock"></i> Submission is only available on Friday/Monday.
+                            {% endif %}
                         </div>
                     {% endif %}
                 {% elseif submission.isRejected %}
@@ -303,25 +300,27 @@
                 </div>
                 {% endif %}
 
-                <div class="mb-3 d-flex align-items-center gap-2">
-                    <label for="supervisorSelect" class="form-label fw-bold mb-0">
-                        <i class="fas fa-user-tie"></i> Supervisor:
-                    </label>
-                    {% if departmentUsers|length > 0 %}
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select form-select-sm" style="max-width:300px" required>
-                        <option value="" disabled selected>-- Select your supervisor --</option>
-                        {% for u in departmentUsers %}
-                            <option value="{{ u.id }}">{{ u.displayName }}</option>
-                        {% endfor %}
-                    </select>
-                    {% else %}
-                        <span>{{ supervisor ? supervisor.displayName : '-' }}</span>
+                <div class="mb-3">
+                    {% set step2Approver = app.user.hasTwoStepWorkflow ? app.user.step2Approver : null %}
+                    <div class="mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="fas fa-user-tie"></i> Step 1 Approver:
+                        </label>
+                        <div>{{ supervisor ? supervisor.displayName : '-' }}</div>
+                    </div>
+                    {% if step2Approver %}
+                    <div class="mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="fas fa-user-check"></i> Step 2 Approver:
+                        </label>
+                        <div>{{ step2Approver.displayName }}</div>
+                    </div>
                     {% endif %}
                 </div>
 
                 <hr>
                 <p class="text-muted small mb-0">
-                    Once submitted, your timesheet will be sent to your supervisor for approval.
+                    Once submitted, your timesheet will be sent to your approver(s) for approval.
                     You will not be able to modify it until it is either fully approved or
                     {% if submission.isRejected -%}
                         rejected again.
@@ -400,9 +399,9 @@
                                 {% elseif entry.isManagerApproved %}
                                     {{ managerHrUser ? managerHrUser.displayName : 'Manager HR' }}
                                 {% elseif entry.isSupervisorApproved %}
-                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : 'Unassigned')) }}
+                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.hasTwoStepWorkflow and entry.user.step2Approver ? entry.user.step2Approver.displayName : '-')) }}
                                 {% elseif entry.isSubmitted %}
-                                    {{ entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.supervisor ? entry.user.supervisor.displayName : 'Unassigned') }}
+                                    {{ entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.supervisor ? entry.user.supervisor.displayName : '-') }}
                                 {% endif %}
                             </td>
                             <td>

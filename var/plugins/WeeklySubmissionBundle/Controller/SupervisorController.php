@@ -634,20 +634,42 @@ final class SupervisorController extends AbstractController
         }
 
         if (!$submission->isSubmitted() && !$submission->isSupervisorApproved() && !$submission->isManagerApproved() && !$submission->isHrApproved()) {
+            $this->addFlash('error', 'Submission cannot be reassigned in its current state.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
+
+        $newSupervisorId = $request->request->get('new_supervisor_id');
+        $newSupervisor = $this->userRepository->find($newSupervisorId);
+
+        if ($newSupervisor === null || !$newSupervisor->isEnabled()) {
+            $this->addFlash('error', 'Invalid supervisor selected.');
+            return $this->redirectToRoute('weekly_submission_supervisor_pending');
+        }
+
+        $staffUser = $submission->getUser();
+        $oldSupervisor = $staffUser->getSupervisor();
+        $previousReassigned = $submission->getReassignedTo();
+
+        $deptUserIds = $this->repository->getDepartmentUserIds($staffUser);
+        if (!in_array((int) $newSupervisorId, $deptUserIds, true)) {
             $this->addFlash('error', 'Selected user is not in the same department as the staff member.');
             return $this->redirectToRoute('weekly_submission_supervisor_pending');
         }
-        $oldSupervisor = $staffUser->getSupervisor();
-        $staffUser->setSupervisor($newSupervisor);
 
-        $this->entityManager->persist($staffUser);
+        if ($submission->getOriginalSupervisor() === null) {
+            $submission->setOriginalSupervisor($oldSupervisor);
+        }
+
+        $submission->setReassignedTo($newSupervisor);
+
+        $this->entityManager->persist($submission);
         $this->entityManager->flush();
 
         $this->addFlash('success', sprintf(
             'Submission for %s (%s) reassigned from %s to %s.',
             $staffUser->getDisplayName(),
             $submission->getWeekStart()->format('d/m/Y'),
-            $oldSupervisor?->getDisplayName() ?? 'none',
+            $previousReassigned?->getDisplayName() ?? $oldSupervisor?->getDisplayName() ?? 'none',
             $newSupervisor->getDisplayName()
         ));
 
@@ -842,41 +864,10 @@ final class SupervisorController extends AbstractController
             return $submission->getReassignedTo()->getId() === $user->getId();
         }
 
-        $staffUser = $submission->getUser();
+        // Step 1 approver is configured on the admin "User Approval Rights" screen
+        $step1 = $submission->getUser()->getSupervisor();
 
-        // Single-level workflow for Regional Offices department
-        if ($this->repository->isInRegionalDepartment($staffUser)) {
-            // Director of the department → approved by ED only
-            if ($staffUser->isDirector()) {
-                return $this->repository->isEdUser($user);
-            }
-
-            // Regional Manager → approved by department director only
-            if ($this->repository->isRegionalManager($staffUser)) {
-                return $this->repository->isRegionalDirector($user);
-            }
-
-            // Officers/below → approved by their team lead or supervisor
-            $managedIds = $this->repository->getManagedUserIds($user);
-            if (in_array($staffUser->getId(), $managedIds, true)) {
-                return true;
-            }
-
-            $supervisorIds = $this->repository->getSupervisedUserIds($user);
-            return in_array($staffUser->getId(), $supervisorIds, true);
-        }
-
-        if ($this->repository->isSeniorOfficer($staffUser)) {
-            $supervisorIds = $this->repository->getSupervisedUserIds($user);
-            if (in_array($staffUser->getId(), $supervisorIds, true)) {
-                return true;
-            }
-            $managedIds = $this->repository->getManagedUserIds($user);
-            return in_array($staffUser->getId(), $managedIds, true);
-        }
-
-        $userIds = $this->repository->getSupervisedUserIds($user);
-        return in_array($staffUser->getId(), $userIds, true);
+        return $step1 !== null && $step1->getId() === $user->getId();
     }
 
     private function canActAsManager(WeeklySubmission $submission, User $user): bool
@@ -890,36 +881,24 @@ final class SupervisorController extends AbstractController
             return $submission->getReassignedTo()->getId() === $user->getId();
         }
 
-        $staffUser = $submission->getUser();
-
-        // Single-level workflow for Regional Offices - no second stage needed
-        if ($this->repository->isInRegionalDepartment($staffUser)) {
+        // Only two-step workflows route through a Step 2 approver
+        if (!$submission->getUser()->hasTwoStepWorkflow()) {
             return false;
         }
 
-        if ($staffUser->isDirector()) {
+        // Step 2 approver is configured on the admin "User Approval Rights" screen
+        $step2 = $submission->getUser()->getStep2Approver();
+        if ($step2 === null) {
             return false;
         }
 
-        // Senior Officers — only department director can approve (2nd stage)
-        if ($this->repository->isSeniorOfficer($staffUser)) {
-            $directorManagedIds = $this->repository->getDirectorManagedUserIds($user);
-            return in_array($staffUser->getId(), $directorManagedIds, true);
+        // A user must never approve both Step 1 and Step 2
+        $step1 = $submission->getUser()->getSupervisor();
+        if ($step1 !== null && $step1->getId() === $step2->getId()) {
+            return false;
         }
 
-        // Officers & below — team leads/managers can approve their team members
-        $managedIds = $this->repository->getManagedUserIds($user);
-        if (in_array($staffUser->getId(), $managedIds, true)) {
-            return true;
-        }
-
-        // Fallback: directors can approve in their department
-        $directorManagedIds = $this->repository->getDirectorManagedUserIds($user);
-        if (in_array($staffUser->getId(), $directorManagedIds, true)) {
-            return true;
-        }
-
-        return false;
+        return $step2->getId() === $user->getId();
     }
 
     private function restoreOriginalSupervisor(WeeklySubmission $submission): void

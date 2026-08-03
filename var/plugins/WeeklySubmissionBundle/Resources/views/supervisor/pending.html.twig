@@ -57,18 +57,11 @@
                                 </td>
                                 <td>{{ group.submittedAt ? group.submittedAt|date('d/m/Y H:i') : '-' }}</td>
                                 <td>
-                                    {% if firstSubmission.isSubmitted %}
-                                        {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor ? group.user.supervisor.displayName : 'Unassigned') }}
-                                    {% elseif firstSubmission.isSupervisorApproved %}
-                                        {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : 'Unassigned') }}
-                                    {% elseif firstSubmission.isManagerApproved %}
-                                        Manager HR (Overtime)
-                                    {% elseif firstSubmission.isHrApproved %}
-                                        HR/Admin (Final)
-                                    {% elseif firstSubmission.isApproved %}
-                                        Fully Approved
-                                    {% elseif firstSubmission.isRejected %}
-                                        Rejected
+                                    {% set lvl = submission_level(firstSubmission) %}
+                                    {% if lvl.level is not null %}
+                                        <span class="badge {{ lvl.class }}" style="color: #fff !important;">Level {{ lvl.level }} of {{ lvl.total }} — {{ lvl.label }}{% if lvl.approver %}: {{ lvl.approver }}{% endif %}</span>
+                                    {% else %}
+                                        <span class="badge {{ lvl.class }}" style="color: #fff !important;">{{ lvl.label }}</span>
                                     {% endif %}
                                 </td>
                                 {% if isAdmin %}
@@ -238,12 +231,11 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if firstSubmission.isSupervisorApproved %}
-                                    {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : 'Unassigned') }}
-                                {% elseif firstSubmission.isManagerApproved %}
-                                    Manager HR (Overtime)
-                                {% elseif firstSubmission.isHrApproved %}
-                                    HR/Admin (Final)
+                                {% set lvl = submission_level(firstSubmission) %}
+                                {% if lvl.level is not null %}
+                                    <span class="badge {{ lvl.class }}" style="color: #fff !important;">Level {{ lvl.level }} of {{ lvl.total }} — {{ lvl.label }}{% if lvl.approver %}: {{ lvl.approver }}{% endif %}</span>
+                                {% else %}
+                                    <span class="badge {{ lvl.class }}" style="color: #fff !important;">{{ lvl.label }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ firstSubmission.approvedAt ? firstSubmission.approvedAt|date('d/m/Y H:i') : '-' }}</td>

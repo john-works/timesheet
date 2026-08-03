@@ -36,7 +36,7 @@
                                 <td>{{ s.weekStart|date('d/m/Y') }} - {{ s.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                                 <td>{% set hrs = (s.totalDuration / 3600)|number_format(2) %}{{ hrs }}h</td>
                                 <td>{{ s.submittedAt ? s.submittedAt|date('d/m/Y H:i') : '-' }}</td>
-                                <td>{{ s.reassignedTo ? s.reassignedTo.displayName : (s.user.supervisor ? s.user.supervisor.displayName : 'Unassigned') }}</td>
+                                <td>{{ s.reassignedTo ? s.reassignedTo.displayName : (s.user.supervisor ? s.user.supervisor.displayName : '-') }}</td>
                                 <td>
                                     <form action="{{ path('weekly_submission_admin_reassign', {id: s.id}) }}" method="post" class="d-flex gap-1">
                                         <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:150px" required>

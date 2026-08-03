@@ -582,45 +582,26 @@ class WeeklySubmissionRepository extends EntityRepository
     }
 
     /**
-     * Get the User entity for the next approver.
+     * Get the User entity for the next approver (Step 2), as configured on the
+     * admin "User Approval Rights" screen. Returns null for single-level workflows.
      */
     public function getNextApprover(User $staffUser): ?User
     {
-        // Single-level workflow for Regional Offices department
-        if ($this->isInRegionalDepartment($staffUser)) {
+        if (!$staffUser->hasTwoStepWorkflow()) {
             return null;
         }
 
-        if ($staffUser->isDirector()) {
+        $step2 = $staffUser->getStep2Approver();
+        if ($step2 === null) {
             return null;
         }
 
-        // Managers (team leads) — single step, their supervisor (Director) approves directly
-        if ($this->isTeamLead($staffUser)) {
+        // A user must never approve both Step 1 and Step 2
+        if ($staffUser->getSupervisor() !== null && $staffUser->getSupervisor()->getId() === $step2->getId()) {
             return null;
         }
 
-        // Senior Officers — department director is the final approver
-        if ($this->isSeniorOfficer($staffUser)) {
-            $director = $this->getDirectorForUser($staffUser);
-            $supervisorId = $staffUser->getSupervisor()?->getId();
-            if ($director !== null && $supervisorId !== null && $director->getId() === $supervisorId) {
-                return null;
-            }
-            return $director;
-        }
-
-        // Officers & below — team lead/manager is the final approver
-        $supervisorId = $staffUser->getSupervisor()?->getId();
-        $managerIds = $this->getManagerIdsForUser($staffUser);
-        $managerIds = array_values(array_filter($managerIds, fn(int $id) => $id !== $supervisorId));
-
-        if (!empty($managerIds)) {
-            return $this->getEntityManager()->getRepository(User::class)->find($managerIds[0]);
-        }
-
-        // If supervisor IS the team lead (same person), fall back to department director
-        return $this->getDirectorForUser($staffUser);
+        return $step2;
     }
 
     /**
@@ -857,10 +838,26 @@ class WeeklySubmissionRepository extends EntityRepository
 
         $ownCount += (int) $qb3->getQuery()->getSingleScalarResult();
 
+        // Count user's own submissions still awaiting approval
+        $qb4 = $this->createQueryBuilder('s');
+        $qb4->select('COUNT(s.id)')
+            ->where('s.user = :self')
+            ->setParameter('self', $user)
+            ->andWhere('s.status IN (:pendingStatuses)')
+            ->setParameter('pendingStatuses', [
+                WeeklySubmission::STATUS_SUBMITTED,
+                WeeklySubmission::STATUS_SUPERVISOR_APPROVED,
+                WeeklySubmission::STATUS_MANAGER_APPROVED,
+                WeeklySubmission::STATUS_HR_APPROVED,
+            ]);
+
+        $ownPending = (int) $qb4->getQuery()->getSingleScalarResult();
+
         return [
             'count' => $actionCount + $ownCount,
             'actionCount' => $actionCount,
             'ownCount' => $ownCount,
+            'ownPending' => $ownPending,
         ];
     }
 

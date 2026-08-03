@@ -308,45 +308,15 @@ final class AdminController extends AbstractController
             $category = $this->getUserCategory($staffUser);
             $department = $this->repository->getDirectorForUser($staffUser);
             $deptName = $this->getUserDepartmentName($staffUser);
-            $deptDirectorId = $department?->getId();
-
-            $nextApproverType = $this->repository->getNextApproverType($staffUser);
-            $nextApprover = $this->repository->getNextApprover($staffUser);
 
             $step1User = $staffUser->getSupervisor();
-            $step2User = null;
-            $workflowType = 'single';
-            $teamLeadManagerIds = [];
+            $step2User = $staffUser->getStep2Approver();
+            $workflowType = $staffUser->getWorkflowType() ?? ($step2User !== null ? 'two-step' : 'single');
 
             if ($category === 'Executive Director') {
                 $step1User = null;
-            } elseif ($category === 'Director') {
-                $step1User = $step1User ?: $edUser;
-            } elseif ($category === 'Regional Manager') {
-                $workflowType = 'single';
-                $step1User = $step1User ?: $department;
-            } elseif ($category === 'Team Lead/Manager') {
-                $workflowType = 'single';
-            } elseif (in_array($category, ['Senior Officer', 'Officer & Below'])) {
-                $workflowType = 'two-step';
-                $teamLeadManagerIds = $this->repository->getManagerIdsForUser($staffUser);
-                $supervisorId = $step1User?->getId();
-                $teamLeadManagerIds = array_values(array_filter($teamLeadManagerIds, fn(int $id) => $id !== $supervisorId));
-
-                if ($category === 'Senior Officer') {
-                    if ($department && $step1User && $department->getId() === $step1User->getId()) {
-                        $workflowType = 'single';
-                        $step2User = null;
-                    } else {
-                        $step2User = $department;
-                    }
-                } else {
-                    if (!empty($teamLeadManagerIds)) {
-                        $step2User = $this->userRepository->find($teamLeadManagerIds[0]);
-                    } elseif ($department) {
-                        $step2User = $department;
-                    }
-                }
+            } elseif ($category === 'Director' && $step1User === null) {
+                $step1User = $edUser;
             }
 
             $approvalData[] = [
@@ -357,7 +327,6 @@ final class AdminController extends AbstractController
                 'workflowType' => $workflowType,
                 'step1' => $step1User,
                 'step2' => $step2User,
-                'nextApproverType' => $nextApproverType,
             ];
         }
 
@@ -383,7 +352,9 @@ final class AdminController extends AbstractController
     public function updateApprovalRights(#[CurrentUser] User $user, Request $request): Response
     {
         $userId = (int) $request->request->get('user_id');
-        $newSupervisorId = $request->request->get('supervisor_id');
+        $newSupervisorId = $request->request->has('supervisor_id') ? $request->request->get('supervisor_id') : null;
+        $newStep2Id = $request->request->has('step2_approver_id') ? $request->request->get('step2_approver_id') : null;
+        $newWorkflowType = $request->request->has('workflow_type') ? $request->request->get('workflow_type') : null;
 
         $staffUser = $this->userRepository->find($userId);
         if ($staffUser === null) {
@@ -391,14 +362,47 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('weekly_submission_admin_approval_rights');
         }
 
-        if ($newSupervisorId === null || $newSupervisorId === '') {
-            $staffUser->setSupervisor(null);
-        } else {
-            $newSupervisor = $this->userRepository->find((int) $newSupervisorId);
-            if ($newSupervisor !== null && $newSupervisor->isEnabled()) {
-                $staffUser->setSupervisor($newSupervisor);
+        if ($newSupervisorId !== null) {
+            if ($newSupervisorId === '') {
+                $staffUser->setSupervisor(null);
             } else {
-                $this->addFlash('error', 'Invalid supervisor selected.');
+                $newSupervisor = $this->userRepository->find((int) $newSupervisorId);
+                if ($newSupervisor !== null && $newSupervisor->isEnabled()) {
+                    $staffUser->setSupervisor($newSupervisor);
+                } else {
+                    $this->addFlash('error', 'Invalid supervisor selected.');
+                    return $this->redirectToRoute('weekly_submission_admin_approval_rights');
+                }
+            }
+        }
+
+        if ($newStep2Id !== null) {
+            if ($newStep2Id === '' || (int) $newStep2Id === $staffUser->getId()) {
+                $staffUser->setStep2Approver(null);
+            } else {
+                $newStep2 = $this->userRepository->find((int) $newStep2Id);
+                if ($newStep2 !== null && $newStep2->isEnabled()) {
+                    $staffUser->setStep2Approver($newStep2);
+                } else {
+                    $this->addFlash('error', 'Invalid Step 2 approver selected.');
+                    return $this->redirectToRoute('weekly_submission_admin_approval_rights');
+                }
+            }
+        }
+
+        if ($newWorkflowType !== null) {
+            if ($newWorkflowType === '' || ($newWorkflowType !== 'single' && $newWorkflowType !== 'two-step')) {
+                $staffUser->setWorkflowType(null);
+            } else {
+                $staffUser->setWorkflowType($newWorkflowType);
+            }
+        }
+
+        if ($newSupervisorId !== null || $newStep2Id !== null) {
+            $step1 = $staffUser->getSupervisor();
+            $step2 = $staffUser->getStep2Approver();
+            if ($step1 !== null && $step2 !== null && $step1->getId() === $step2->getId()) {
+                $this->addFlash('error', 'Step 1 and Step 2 approvers must be different users.');
                 return $this->redirectToRoute('weekly_submission_admin_approval_rights');
             }
         }
@@ -407,9 +411,11 @@ final class AdminController extends AbstractController
         $this->entityManager->flush();
 
         $this->addFlash('success', sprintf(
-            'Approval rights updated for %s. Step 1 approver: %s',
+            'Approval rights updated for %s. Workflow: %s, Step 1 approver: %s, Step 2 approver: %s',
             $staffUser->getDisplayName(),
-            $staffUser->getSupervisor()?->getDisplayName() ?? 'None'
+            $staffUser->hasTwoStepWorkflow() ? '2-Step' : 'Single-level',
+            $staffUser->getSupervisor()?->getDisplayName() ?? 'None',
+            $staffUser->getStep2Approver()?->getDisplayName() ?? 'None'
         ));
 
         return $this->redirectToRoute('weekly_submission_admin_approval_rights');
