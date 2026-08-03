@@ -3,6 +3,7 @@
 namespace KimaiPlugin\WeeklySubmissionBundle\Controller;
 
 use App\Entity\User;
+use App\Pdf\HtmlToPdfConverter;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use KimaiPlugin\WeeklySubmissionBundle\Entity\WeeklySubmission;
@@ -11,6 +12,7 @@ use KimaiPlugin\WeeklySubmissionBundle\Repository\WeeklySubmissionRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
@@ -23,6 +25,7 @@ final class AdminController extends AbstractController
         private readonly WeeklySubmissionMailer $mailer,
         private readonly EntityManagerInterface $entityManager,
         private readonly UserRepository $userRepository,
+        private readonly HtmlToPdfConverter $htmlToPdfConverter,
     )
     {
     }
@@ -37,6 +40,214 @@ final class AdminController extends AbstractController
             'submissions' => $submissions,
             'allUsers' => $allUsers,
         ]);
+    }
+
+    #[Route('/admin/submissions/overview', name: 'weekly_submission_admin_overview', methods: ['GET'])]
+    public function overview(#[CurrentUser] User $user): Response
+    {
+        return $this->render('@WeeklySubmission/admin/overview.html.twig', $this->buildOverviewData());
+    }
+
+    #[Route('/admin/submissions/overview/pdf', name: 'weekly_submission_admin_overview_pdf', methods: ['GET'])]
+    public function overviewPdf(#[CurrentUser] User $user, Request $request): Response
+    {
+        $overview = $this->buildOverviewData();
+        $currentWeekKey = $overview['currentWeekStart']->format('Y-m-d');
+
+        $dept = (string) $request->query->get('dept', '');
+        $status = (string) $request->query->get('status', 'all');
+
+        $data = [];
+        foreach ($overview['data'] as $entry) {
+            if ($dept !== '' && $entry['department'] !== $dept) {
+                continue;
+            }
+            if ($status !== 'all') {
+                $cell = $entry['cells'][$currentWeekKey] ?? null;
+                if ($cell === null || $cell['type'] !== $status) {
+                    continue;
+                }
+            }
+            $data[] = $entry;
+        }
+
+        $weekSubmitted = array_fill_keys($overview['weekKeys'], 0);
+        $weekTotal = array_fill_keys($overview['weekKeys'], 0);
+        foreach ($data as $entry) {
+            foreach ($overview['weekKeys'] as $key) {
+                $weekTotal[$key]++;
+                if (($entry['cells'][$key]['type'] ?? null) === 'submitted') {
+                    $weekSubmitted[$key]++;
+                }
+            }
+        }
+
+        $generatedAt = new \DateTimeImmutable('now');
+        $content = $this->renderView('@WeeklySubmission/admin/overview_pdf.html.twig', [
+            'weeks' => $overview['weeks'],
+            'weekKeys' => $overview['weekKeys'],
+            'currentWeekStart' => $overview['currentWeekStart'],
+            'data' => $data,
+            'weekSubmitted' => $weekSubmitted,
+            'weekTotal' => $weekTotal,
+            'deptFilter' => $dept,
+            'statusFilter' => $status,
+            'generatedAt' => $generatedAt,
+        ]);
+
+        $pdf = $this->htmlToPdfConverter->convertToPdf($content, [
+            'format' => 'A4-L',
+            'margin_top' => 10,
+            'margin_bottom' => 10,
+            'margin_left' => 8,
+            'margin_right' => 8,
+        ]);
+
+        $filename = 'weekly-submission-overview-' . $generatedAt->format('Y-m-d');
+
+        $response = new Response($pdf);
+        $response->headers->set('Content-Type', 'application/pdf');
+        $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $filename . '.pdf'
+        ));
+
+        return $response;
+    }
+
+    /**
+     * @return array{weeks: \DateTimeImmutable[], weekKeys: string[], currentWeekStart: \DateTimeImmutable, data: array<int, array{user: User, department: string, cells: array<string, array{type: string, hours: int}>}>, weekSubmitted: array<string, int>, weekTotal: array<string, int>, departments: string[]}
+     */
+    private function buildOverviewData(): array
+    {
+        $now = new \DateTimeImmutable('now');
+        $currentWeekStart = $now->modify('monday this week')->setTime(0, 0, 0);
+
+        $overviewStart = new \DateTimeImmutable('2026-07-13');
+        $weeks = [];
+        for ($i = 0; $i < 8; $i++) {
+            $weeks[] = $overviewStart->modify("+{$i} weeks");
+        }
+        $from = $weeks[0];
+        $to = $weeks[7]->modify('+1 week');
+        $weekKeys = array_map(fn (\DateTimeImmutable $w) => $w->format('Y-m-d'), $weeks);
+
+        $conn = $this->entityManager->getConnection();
+
+        // Bulk-load weekly submissions in range (user_id => week_start => status)
+        $submissionMap = [];
+        foreach ($conn->fetchAllAssociative(
+            'SELECT user_id, week_start, status FROM kimai2_weekly_submissions WHERE week_start >= :from AND week_start < :to',
+            ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]
+        ) as $row) {
+            $submissionMap[$row['user_id']][$row['week_start']] = $row['status'];
+        }
+
+        // Bulk-load timesheet totals grouped by user + day
+        $timeMap = [];
+        foreach ($conn->fetchAllAssociative(
+            'SELECT t.user AS user_id, DATE(t.start_time) AS day, SUM(t.duration) AS duration
+             FROM kimai2_timesheet t
+             WHERE t.start_time >= :from AND t.start_time < :to
+             GROUP BY t.user, DATE(t.start_time)',
+            ['from' => $from->format('Y-m-d 00:00:00'), 'to' => $to->format('Y-m-d 00:00:00')]
+        ) as $row) {
+            $day = new \DateTimeImmutable($row['day']);
+            $dow = (int) $day->format('N');
+            $weekKey = $day->modify('-' . ($dow - 1) . ' days')->format('Y-m-d');
+            if (in_array($weekKey, $weekKeys, true)) {
+                $timeMap[$row['user_id']][$weekKey] = ($timeMap[$row['user_id']][$weekKey] ?? 0) + (int) $row['duration'];
+            }
+        }
+
+        // Department name per user (first team department)
+        $deptMap = [];
+        foreach ($conn->fetchAllAssociative(
+            'SELECT ut.user_id, d.name FROM kimai2_users_teams ut
+             JOIN kimai2_departments_teams dt ON dt.team_id = ut.team_id
+             JOIN kimai2_departments d ON d.id = dt.department_id
+             ORDER BY ut.user_id'
+        ) as $row) {
+            if (!isset($deptMap[$row['user_id']])) {
+                $deptMap[$row['user_id']] = $row['name'];
+            }
+        }
+
+        $servicePatterns = [
+            '/^ad_/', '/^sccm/', '/^itadmin/', '/^itop_/', '/^itoptest/', '/^edmsadmin/',
+            '/^solomonadmin/', '/^appserver/', '/^mailbackup/', '/^mail$/', '/^vpn$/',
+            '/^share$/', '/^quarantine$/', '/^kaspersky/', '/^mruser$/', '/^knowbe4/',
+            '/^svc-/', '/^zabbix/',
+        ];
+        $submittedStatuses = [
+            WeeklySubmission::STATUS_SUBMITTED,
+            WeeklySubmission::STATUS_SUPERVISOR_APPROVED,
+            WeeklySubmission::STATUS_MANAGER_APPROVED,
+            WeeklySubmission::STATUS_HR_APPROVED,
+            WeeklySubmission::STATUS_APPROVED,
+        ];
+
+        $data = [];
+        $weekSubmitted = array_fill_keys($weekKeys, 0);
+        $weekTotal = array_fill_keys($weekKeys, 0);
+
+        foreach ($this->userRepository->findBy(['enabled' => true], ['username' => 'ASC']) as $staffUser) {
+            if ($staffUser->isSystemAccount()) {
+                continue;
+            }
+            $username = $staffUser->getUserIdentifier();
+            foreach ($servicePatterns as $pattern) {
+                if (preg_match($pattern, $username)) {
+                    continue 2;
+                }
+            }
+
+            $uid = (int) $staffUser->getId();
+            $cells = [];
+            foreach ($weekKeys as $key) {
+                $status = $submissionMap[$uid][$key] ?? null;
+                $hours = $timeMap[$uid][$key] ?? 0;
+
+                if ($status !== null && in_array($status, $submittedStatuses, true)) {
+                    $cells[$key] = ['type' => 'submitted', 'hours' => $hours];
+                    $weekSubmitted[$key]++;
+                } elseif ($status === WeeklySubmission::STATUS_REJECTED) {
+                    $cells[$key] = ['type' => 'rejected', 'hours' => $hours];
+                } elseif ($hours > 0) {
+                    $cells[$key] = ['type' => 'missing', 'hours' => $hours];
+                } else {
+                    $cells[$key] = ['type' => 'empty', 'hours' => 0];
+                }
+                $weekTotal[$key]++;
+            }
+
+            $data[] = [
+                'user' => $staffUser,
+                'department' => $deptMap[$uid] ?? 'No Department',
+                'cells' => $cells,
+            ];
+        }
+
+        usort($data, function (array $a, array $b) {
+            $cmp = strcmp($a['department'], $b['department']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return strcmp($a['user']->getDisplayName(), $b['user']->getDisplayName());
+        });
+
+        $departments = array_values(array_unique(array_map(fn (array $e) => $e['department'], $data)));
+        sort($departments);
+
+        return [
+            'weeks' => $weeks,
+            'weekKeys' => $weekKeys,
+            'currentWeekStart' => $currentWeekStart,
+            'data' => $data,
+            'weekSubmitted' => $weekSubmitted,
+            'weekTotal' => $weekTotal,
+            'departments' => $departments,
+        ];
     }
 
     #[Route('/admin/submissions/{id}/reassign', name: 'weekly_submission_admin_reassign', methods: ['POST'])]

@@ -58,9 +58,9 @@
                                 <td>{{ group.submittedAt ? group.submittedAt|date('d/m/Y H:i') : '-' }}</td>
                                 <td>
                                     {% if firstSubmission.isSubmitted %}
-                                        {{ group.user.supervisor ? group.user.supervisor.displayName : '-' }}
+                                        {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor ? group.user.supervisor.displayName : 'Unassigned') }}
                                     {% elseif firstSubmission.isSupervisorApproved %}
-                                        {{ group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : '-' }}
+                                        {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : 'Unassigned') }}
                                     {% elseif firstSubmission.isManagerApproved %}
                                         Manager HR (Overtime)
                                     {% elseif firstSubmission.isHrApproved %}
@@ -239,7 +239,7 @@
                             </td>
                             <td>
                                 {% if firstSubmission.isSupervisorApproved %}
-                                    {{ group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : '-' }}
+                                    {{ firstSubmission.reassignedTo ? firstSubmission.reassignedTo.displayName : (group.user.supervisor.supervisor ? group.user.supervisor.supervisor.displayName : 'Unassigned') }}
                                 {% elseif firstSubmission.isManagerApproved %}
                                     Manager HR (Overtime)
                                 {% elseif firstSubmission.isHrApproved %}

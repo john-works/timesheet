@@ -86,6 +86,12 @@ final class MenuSubscriber implements EventSubscriberInterface
 
         if ($auth->isGranted('ROLE_ADMIN')) {
             $weeklySubmission->addChild(
+                new MenuItemModel('weekly_submission_admin_overview', 'Weekly Overview', 'weekly_submission_admin_overview', [], 'th')
+            );
+            $weeklySubmission->addChild(
+                new MenuItemModel('weekly_submission_admin_index', 'All Submissions', 'weekly_submission_admin_index', [], 'list')
+            );
+            $weeklySubmission->addChild(
                 new MenuItemModel('weekly_submission_admin_approval_rights', 'Approval Rights', 'weekly_submission_admin_approval_rights', [], 'sitemap')
             );
         }

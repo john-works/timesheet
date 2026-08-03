@@ -9,6 +9,7 @@
                 <h3 class="card-title">All Submitted Submissions</h3>
                 <div class="card-tools">
                     <span class="badge bg-warning" style="color: #fff !important;">{{ submissions|length }} pending</span>
+                    <a href="{{ path('weekly_submission_admin_overview') }}" class="btn btn-primary btn-sm ms-2"><i class="fas fa-th"></i> Overview</a>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -35,7 +36,7 @@
                                 <td>{{ s.weekStart|date('d/m/Y') }} - {{ s.weekStart|date_modify('+4 days')|date('d/m/Y') }}</td>
                                 <td>{% set hrs = (s.totalDuration / 3600)|number_format(2) %}{{ hrs }}h</td>
                                 <td>{{ s.submittedAt ? s.submittedAt|date('d/m/Y H:i') : '-' }}</td>
-                                <td>{{ s.reassignedTo ? s.reassignedTo.displayName : (s.user.supervisor ? s.user.supervisor.displayName : '-') }}</td>
+                                <td>{{ s.reassignedTo ? s.reassignedTo.displayName : (s.user.supervisor ? s.user.supervisor.displayName : 'Unassigned') }}</td>
                                 <td>
                                     <form action="{{ path('weekly_submission_admin_reassign', {id: s.id}) }}" method="post" class="d-flex gap-1">
                                         <select name="new_supervisor_id" class="form-control form-control-sm" style="min-width:150px" required>

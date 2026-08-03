@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Weekly Submission Overview</title>
+    <style>
+        body { font-family: sans-serif; font-size: 8pt; color: #212529; }
+        h1 { font-size: 13pt; margin: 0 0 2px 0; }
+        .subtitle { font-size: 8pt; color: #6c757d; margin-bottom: 8px; }
+        .legend { font-size: 7.5pt; margin-bottom: 8px; }
+        .legend span { margin-right: 10px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 0.5pt solid #999; padding: 2px 3px; text-align: left; }
+        th { background-color: #e9ecef; font-size: 7.5pt; }
+        th.week, td.week { text-align: center; }
+        th.current { background-color: #cfe2ff; }
+        td.current { background-color: #e7f1ff; }
+        td.ok { background-color: #d1e7dd; color: #155724; text-align: center; }
+        td.warn { background-color: #fff3cd; color: #856404; text-align: center; }
+        td.bad { background-color: #f8d7da; color: #842029; text-align: center; }
+        td.empty { color: #6c757d; text-align: center; }
+        .name { font-weight: bold; white-space: nowrap; }
+        .dept { font-size: 7.5pt; white-space: nowrap; }
+        tfoot td { background-color: #e9ecef; font-weight: bold; text-align: center; }
+        tfoot td.label { text-align: left; }
+    </style>
+</head>
+<body>
+    <h1>Weekly Submission Overview</h1>
+    <div class="subtitle">
+        Generated: {{ generatedAt|date('d/m/Y H:i') }} &nbsp;|&nbsp;
+        Period: {{ weeks|first|date('d/m/Y') }} - {{ weeks|last|date_modify('+4 days')|date('d/m/Y') }}
+        {% if deptFilter %} &nbsp;|&nbsp; Department: {{ deptFilter }}{% endif %}
+        {% if statusFilter != 'all' %} &nbsp;|&nbsp; Filter: {{ statusFilter|title }}{% endif %}
+    </div>
+    <div class="legend">
+        <span><b style="color:#155724;">&#10003;</b> Submitted</span>
+        <span><b style="color:#856404;">&#9888;</b> Rejected</span>
+        <span><b style="color:#842029;">&#10007;</b> Not submitted</span>
+        <span><b style="color:#6c757d;">-</b> No timesheet data</span>
+        <span><b style="background-color:#cfe2ff;">&nbsp;Current week&nbsp;</b></span>
+    </div>
+    {% if data|length == 0 %}
+        <p>No users match the current filter.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Staff</th>
+                <th>Department</th>
+                {% for week in weeks %}
+                    {% set isCurrent = week|date('Y-m-d') == currentWeekStart|date('Y-m-d') %}
+                    <th class="week {{ isCurrent ? 'current' : '' }}">
+                        {{ week|date('d/m') }}<br>
+                        {{ week|date('M') }}
+                    </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in data %}
+            <tr>
+                <td class="name">{{ entry.user.displayName }}</td>
+                <td class="dept">{{ entry.department }}</td>
+                {% for week in weeks %}
+                    {% set key = week|date('Y-m-d') %}
+                    {% set cell = entry.cells[key] %}
+                    {% set isCurrent = key == currentWeekStart|date('Y-m-d') %}
+                    {% if cell.type == 'submitted' %}
+                        <td class="week ok {{ isCurrent ? 'current' : '' }}">&#10003;</td>
+                    {% elseif cell.type == 'rejected' %}
+                        <td class="week warn {{ isCurrent ? 'current' : '' }}">&#9888;</td>
+                    {% elseif cell.type == 'missing' %}
+                        <td class="week bad {{ isCurrent ? 'current' : '' }}">&#10007;</td>
+                    {% else %}
+                        <td class="week empty {{ isCurrent ? 'current' : '' }}">-</td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td class="label" colspan="2">Submitted</td>
+                {% for week in weeks %}
+                    {% set key = week|date('Y-m-d') %}
+                    <td class="{{ week|date('Y-m-d') == currentWeekStart|date('Y-m-d') ? 'current' : '' }}">{{ weekSubmitted[key] }}/{{ weekTotal[key] }}</td>
+                {% endfor %}
+            </tr>
+        </tfoot>
+    </table>
+    {% endif %}
+</body>
+</html>

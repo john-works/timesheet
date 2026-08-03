@@ -160,11 +160,11 @@
                     {% if submission.isDraft or submission.isRejected %}
                         {{ app.user.displayName }}
                     {% elseif submission.isApproved %}
-                        {{ submission.managerApprovedBy ? submission.managerApprovedBy.displayName : submission.approvedBy.displayName }}
+                        Fully Approved
                     {% elseif submission.isSupervisorApproved %}
-                        {{ supervisor.supervisor ? supervisor.supervisor.displayName : '-' }}
+                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (supervisor.supervisor ? supervisor.supervisor.displayName : 'Unassigned') }}
                     {% elseif submission.isSubmitted %}
-                        {{ supervisor ? supervisor.displayName : '-' }}
+                        {{ submission.reassignedTo ? submission.reassignedTo.displayName : (supervisor ? supervisor.displayName : 'Unassigned') }}
                     {% endif %}
                 </div>
 
@@ -394,15 +394,15 @@
                                 {% elseif entry.isRejected %}
                                     {{ app.user.displayName }}
                                 {% elseif entry.isApproved %}
-                                    -
+                                    Fully Approved
                                 {% elseif entry.isHrApproved %}
                                     HR (Final Approval)
                                 {% elseif entry.isManagerApproved %}
                                     {{ managerHrUser ? managerHrUser.displayName : 'Manager HR' }}
                                 {% elseif entry.isSupervisorApproved %}
-                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : '-') }}
+                                    {{ entry.managerApprovedBy ? entry.managerApprovedBy.displayName : (entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.supervisor.supervisor ? entry.user.supervisor.supervisor.displayName : 'Unassigned')) }}
                                 {% elseif entry.isSubmitted %}
-                                    {{ entry.user.supervisor ? entry.user.supervisor.displayName : '-' }}
+                                    {{ entry.reassignedTo ? entry.reassignedTo.displayName : (entry.user.supervisor ? entry.user.supervisor.displayName : 'Unassigned') }}
                                 {% endif %}
                             </td>
                             <td>

@@ -41,7 +41,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ (submission.totalDuration / 3600)|number_format(2) }}h</td>
-                                <td>{{ submission.currentApprover ? submission.currentApprover.displayName : '-' }}</td>
+                                <td>{{ submission.isApproved ? 'Fully Approved' : (submission.currentApprover ? submission.currentApprover.displayName : '-') }}</td>
                                 <td>{{ submission.managerNotes ?: (submission.supervisorNotes ?: '-') }}</td>
                                 <td class="actions-cell">
                                     <div class="dropdown">
