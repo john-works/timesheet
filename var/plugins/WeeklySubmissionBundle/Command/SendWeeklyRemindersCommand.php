@@ -112,7 +112,7 @@ class SendWeeklyRemindersCommand extends Command
             }
 
             try {
-                $this->mailer->sendSubmissionReminder($user);
+                $this->mailer->sendSubmissionReminder($user, $targetWeekStart);
                 $output->writeln(sprintf('<info>Reminder sent to %s (%s)</info>',
                     $user->getDisplayName(), $user->getEmail()));
                 $reminded++;

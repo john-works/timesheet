@@ -99,9 +99,23 @@ final class StaffController extends AbstractController
         $dayOfWeek = (int) $now->format('N'); // 1=Mon, 5=Fri, 6=Sat, 7=Sun
         $hour = (int) $now->format('G');
 
+        $unsubmittedWeeks = $this->findUnsubmittedPreviousWeeks($user, $currentWeekStart);
+        $rejectedWeeks = $this->repository->findRejectedForUser($user);
+
+        $lastWeekStart = $currentWeekStart->modify('-7 days');
+        $lastWeekSubmission = $this->repository->findForUserAndWeek($user, $lastWeekStart);
+        $lastWeekNotSubmitted = ($lastWeekSubmission === null || (!$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved() && !$lastWeekSubmission->isHrApproved()));
+
         $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
 
+        // Submission is available on Friday or Monday after 8:00 AM. On Monday the
+        // current week itself cannot be submitted, so the button is only enabled
+        // for staff who still have a pending (unsubmitted) previous week.
         $canSubmit = (($dayOfWeek === 5 || $dayOfWeek === 1) && $hour >= 8);
+        if ($dayOfWeek === 1 && $isCurrentWeek) {
+            $canSubmit = $canSubmit && !empty($unsubmittedWeeks);
+        }
+        $allowCurrentWeek = ($dayOfWeek === 5);
 
         $prevWeek = $weekStart->modify('-7 days')->format('Y-m-d');
         $nextWeek = $isCurrentWeek ? null : $weekStart->modify('+7 days')->format('Y-m-d');
@@ -110,13 +124,6 @@ final class StaffController extends AbstractController
         $departmentUsers = !empty($deptUserIds) ? $this->userRepository->findBy(['id' => $deptUserIds], ['username' => 'ASC']) : [];
         $departmentUsers = array_filter($departmentUsers, fn($u) => $u->getId() !== $user->getId());
         $departmentUsers = array_values($departmentUsers);
-
-        $unsubmittedWeeks = $this->findUnsubmittedPreviousWeeks($user, $currentWeekStart);
-        $rejectedWeeks = $this->repository->findRejectedForUser($user);
-
-        $lastWeekStart = $currentWeekStart->modify('-7 days');
-        $lastWeekSubmission = $this->repository->findForUserAndWeek($user, $lastWeekStart);
-        $lastWeekNotSubmitted = ($lastWeekSubmission === null || (!$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved() && !$lastWeekSubmission->isHrApproved()));
 
         return $this->render('@WeeklySubmission/staff/index.html.twig', [
             'submission' => $submission,
@@ -127,6 +134,7 @@ final class StaffController extends AbstractController
             'supervisor' => $user->getSupervisor(),
             'leaveDays' => $leaveDays,
             'canSubmit' => $canSubmit,
+            'allowCurrentWeek' => $allowCurrentWeek,
             'departmentUsers' => $departmentUsers,
             'prevWeek' => $prevWeek,
             'nextWeek' => $nextWeek,
@@ -188,6 +196,11 @@ final class StaffController extends AbstractController
 
         if (($dayOfWeek !== 5 && $dayOfWeek !== 1) || $hour < 8) {
             $this->addFlash('error', 'Submission is only available on Friday or Monday after 8:00 AM');
+            return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
+        }
+
+        if ($dayOfWeek === 1 && $weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d')) {
+            $this->addFlash('error', 'On Monday you can only submit last week\'s timesheet, not the current week.');
             return $this->redirectToRoute('weekly_submission_staff', $redirectParams);
         }
 
@@ -443,6 +456,23 @@ final class StaffController extends AbstractController
         if (($dayOfWeek !== 5 && $dayOfWeek !== 1) || $hour < 8) {
             $this->addFlash('error', 'Submission is only available on Friday or Monday after 8:00 AM');
             return $this->redirectToRoute('weekly_submission_staff');
+        }
+
+        if ($dayOfWeek === 1) {
+            $currentWeekStart = $this->getCurrentWeekStart();
+            $weeks = array_values(array_filter($weeks, function (string $weekDate) use ($currentWeekStart): bool {
+                $ws = \DateTimeImmutable::createFromFormat('Y-m-d', $weekDate);
+                if ($ws === false) {
+                    return true;
+                }
+                $dow = (int) $ws->format('N');
+                $ws = $ws->modify('-' . ($dow - 1) . ' days')->setTime(0, 0, 0);
+                return $ws->format('Y-m-d') !== $currentWeekStart->format('Y-m-d');
+            }));
+            if (empty($weeks)) {
+                $this->addFlash('error', 'On Monday you can only submit last week\'s timesheet, not the current week.');
+                return $this->redirectToRoute('weekly_submission_staff');
+            }
         }
 
         $submittedCount = 0;

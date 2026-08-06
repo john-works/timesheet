@@ -165,10 +165,12 @@ class WeeklySubmissionMailer
         $this->mailer->sendToUser($submission->getUser(), $email);
     }
 
-    public function sendSubmissionReminder(User $user): void
+    public function sendSubmissionReminder(User $user, ?\DateTimeImmutable $weekStart = null): void
     {
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
-        $weekStart = $now->modify('monday this week')->setTime(0, 0, 0);
+        if ($weekStart === null) {
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Kampala'));
+            $weekStart = $now->modify('monday this week')->setTime(0, 0, 0);
+        }
         $weekEnd = $weekStart->modify('+4 days');
 
         $html = $this->twig->render('@WeeklySubmission/emails/submission_reminder.html.twig', [

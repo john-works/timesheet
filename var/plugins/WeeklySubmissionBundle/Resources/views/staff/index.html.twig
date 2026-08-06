@@ -170,7 +170,7 @@
                 {% set otherRejectedWeeks = rejectedWeeks|filter(r => r.weekStart|date('Y-m-d') != weekStart|date('Y-m-d')) %}
                 {% set totalResubmitWeeks = otherRejectedWeeks|length + 1 %}
                 {% if submission.isDraft %}
-                    {% if canSubmit and lastWeekNotSubmitted %}
+                    {% if canSubmit %}
                         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal">
                             <i class="fas fa-paper-plane"></i> {% if totalWeeksToSubmit > 1 %}Submit All Weeks ({{ totalWeeksToSubmit }}){% else %}Submit to Supervisor{% endif %}
                         </button>
@@ -179,7 +179,7 @@
                             <i class="fas fa-paper-plane"></i> Submit to Supervisor
                         </button>
                         <div class="text-muted small mt-2">
-                            {% if canSubmit and not lastWeekNotSubmitted %}
+                            {% if not lastWeekNotSubmitted and unsubmittedWeeks|length == 0 %}
                                 <i class="fas fa-check-circle"></i> You have already submitted for last week.
                             {% else %}
                                 <i class="fas fa-clock"></i> Submission is only available on Friday/Monday.
@@ -224,7 +224,7 @@
                         {% set submittedWeekDates = submittedWeekDates|merge([uw.weekStart|date('Y-m-d')]) %}
                     {% endfor %}
                     {% set currentWeekStr = currentWeekStart|date('Y-m-d') %}
-                    {% if currentWeekStr not in submittedWeekDates %}
+                    {% if allowCurrentWeek and currentWeekStr not in submittedWeekDates %}
                     <input type="hidden" name="weeks[]" value="{{ currentWeekStr }}">
                     {% endif %}
                 {% elseif submission.isRejected %}
