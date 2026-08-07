@@ -10,7 +10,7 @@ final class TimesheetSubmissionDeadline extends TimesheetConstraint
 
     protected const ERROR_NAMES = [
         self::FUTURE_DATE_ERROR => 'You cannot submit timesheets for a future date.',
-        self::PREVIOUS_MONTH_GRACE_ERROR => 'Previous month timesheets can only be submitted during the 5-day grace period.',
+        self::PREVIOUS_MONTH_GRACE_ERROR => 'Previous month timesheets can only be submitted during the 10-day grace period.',
         self::PREVIOUS_MONTH_EXPIRED_ERROR => 'The grace period for submitting previous month timesheets has expired.',
     ];
 

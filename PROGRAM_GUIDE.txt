@@ -1,0 +1,407 @@
+================================================================================
+PROGRAM GUIDE - PPDA TIMESHEET APPLICATION
+Folder / File Structure and Their Use
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+This is a customized installation of Kimai 2.56.0, an open-source time-tracking
+application (Symfony + PHP + MariaDB), branded as "PPDA Timesheet" for the
+Public Procurement and Disposal of Public Assets Authority (PPDA), Uganda.
+
+Core concepts:
+  - Users belong to Teams; Teams access Departments, Projects, and Activities.
+  - Timesheets (time entries) are recorded by users against Projects + Activities.
+  - Access to all resources is filtered through team membership, department
+    scoping, and a supervisor/director hierarchy.
+  - A custom plugin (WeeklySubmissionBundle) adds a weekly submission and
+    multi-level approval workflow, Ugandan public holidays, LDAP/AD sync,
+    leave handling, and automatic lunch-break deduction.
+
+Key extensions built on top of stock Kimai:
+  - Weekly submission & approval workflow (staff -> supervisor -> manager/director -> HR)
+  - AD/LDAP user, department, team and manager sync
+  - Public holidays (Uganda) with auto-created timesheet entries
+  - Leave batch-entry (8:00-17:00 weekdays)
+  - Previous-month entry grace period (now 10 days) via TimesheetSubmissionDeadline
+  - Automatic 1-hour lunch break deduction (13:00-14:00)
+  - Branding: "PPDA Timesheet", custom logo (public/ppda.jpg)
+
+================================================================================
+2. TOP-LEVEL FOLDER / FILE SUMMARY
+================================================================================
+src/                 - Application source code (controllers, entities, services)
+templates/           - Twig templates for the entire UI
+config/              - Symfony / application configuration
+public/              - Web document root (front controller, built assets, images)
+assets/              - Webpack Encore source assets (JS / SCSS) -> public/build/
+var/                 - Runtime data (cache, logs) + plugins/
+var/plugins/WeeklySubmissionBundle - CUSTOM plugin (weekly submission workflow)
+migrations/          - Database schema migrations (Doctrine)
+tests/               - PHPUnit test suite
+translations/        - XLIFF translation catalogs (messages, validators, etc.)
+bin/                 - Symfony console entrypoint (bin/console)
+vendor/              - Composer dependencies
+node_modules/        - npm/yarn front-end dependencies
+ant/                 - Nginx config and logs
+.git/                - Git repository
+
+ROOT FILES
+  .env / .env.dist            - Environment variables (DB credentials, mailer)
+  composer.json / composer.lock - PHP dependencies (Symfony, Kimai core)
+  package.json / yarn.lock    - Front-end dependencies (Encore, JS libs)
+  webpack.config.js           - Encore build configuration
+  phpstan.neon / phpstan.sh   - Static analysis configuration and runner
+  phpunit.xml.dist            - PHPUnit configuration
+  .php-cs-fixer.dist.php      - Code style fixer configuration
+  Dockerfile / .docker/       - Container build files
+  kimai.sh                    - Official Kimai maintenance script (update, plugins, cache)
+  LICENSE / CHANGELOG.md      - Licensing and change log
+  README.md                   - Project readme
+  KIMAI_CODEBASE_STRUCTURE.md - Existing (markdown) codebase exploration doc
+  SECURITY.md / CONTRIBUTING.md - Security & contribution guidelines
+  create_holidays.php         - CUSTOM cron script: auto-creates holiday timesheet entries
+  create_teams.php            - CUSTOM one-time AD -> team mapping script
+  import_ldap_users.php       - CUSTOM one-time LDAP user importer
+  sync-ad.sh                  - CUSTOM cron wrapper for AD/LDAP sync
+  setup-nginx.sh              - CUSTOM nginx vhost setup for timesheet.ppda.go.ug
+  backup_*.sql                - Database backup dumps
+
+================================================================================
+3. src/ - APPLICATION SOURCE CODE
+================================================================================
+Each entry: purpose/use. (CUSTOM = added/modified beyond stock Kimai)
+
+  Activity/            - Activity CRUD service + budget/statistics aggregation.
+  API/                 - REST API controllers, auth handlers, DTOs, serializers.
+                        TimesheetController.php customized to align with the
+                        weekly-submission/lockdown rules.
+  Audit/               - Doctrine extension interfaces (Loggable, Versioned)
+                        enabling entity audit logging.
+  Calendar/            - Calendar query/services/sources backing the calendar UI
+                        (drag & drop, Google source, recent activities).
+  Command/             - Console commands.
+                        CUSTOM: BulkPasswordCommand (bulk password reset),
+                        LdapSyncCommand (AD sync), MigrateAuthCommand (users to
+                        LDAP auth), TimesheetReminderCommand (weekly reminder
+                        emails), ProbeProfilesCommand (QA profile-probing tool).
+  Configuration/       - System configuration services & loaders (LDAP, SAML,
+                        mail, locale, system settings).
+  ConsoleApplication.php - Bootstraps the Symfony console application.
+  Constants.php        - Global constants; CUSTOM: rebranded to "PPDA Timesheet".
+  Controller/          - Web controllers for the entire UI.
+                        CUSTOM: LeaveController (batch leave entries),
+                        LdapSyncController (admin sync page),
+                        Admin/PublicHolidayController (holiday CRUD + auto entries).
+                        MODIFIED: TimesheetController (locked weeks, 8 AM rule,
+                        leave handling), QuickEntryController, ProfileController
+                        (Departments tab), CalendarController, DashboardController,
+                        Reporting controllers.
+  DataFixtures/        - Test/dev fixture loaders (custom test users).
+  Department/          - Department service and statistics classes.
+  DependencyInjection/ - Bundle extension, config, compiler passes wiring services.
+  Doctrine/            - Migrations base, timestamp behaviors, UTC types,
+                        DSN parser, timesheet lifecycle subscriber.
+  Entity/              - Doctrine entities (Timesheet, Project, Activity, Team,
+                        Department, User, Invoice, etc.).
+                        CUSTOM: PublicHoliday.php.
+                        MODIFIED: User.php (ROLE_DIRECTOR, directorDepartments,
+                        supervisor logic), Department.php (director relation).
+  Event/               - Symfony event classes (create/update/delete/menu events).
+  EventSubscriber/     - Event subscribers wiring UI behavior.
+                        MODIFIED: MenuSubscriber adds Weekly Submissions, Leave,
+                        Public Holidays, LDAP Sync menu items.
+  Export/              - Timesheet export pipeline (CSV/XLSX/PDF/HTML renderers).
+  Form/                - Symfony form types.
+                        CUSTOM: PublicHolidayEditForm, UserDepartmentsType,
+                        Model/TaskRow + Type/TaskRowType (weekly submission rows).
+                        MODIFIED: TimesheetEditForm (leave/submission fields),
+                        UserCreateType, ActivityType, TimesheetPreCreateForm.
+  Invoice/             - Invoice calculation, rendering, numbering services.
+  Kernel.php           - Symfony kernel; MODIFIED: registers WeeklySubmissionBundle.
+  Ldap/                - LDAP auth infrastructure.
+                        CUSTOM: LdapSyncService (475-line AD->Kimai sync engine).
+                        MODIFIED: FormLoginLdapFactory, LdapCredentialsSubscriber,
+                        LdapDriver, LdapManager (PPDA AD connection).
+  Logger/              - LogProcessor: injects user/context into log records.
+  Mail/                - KimaiMailer wrapper.
+  Model/               - Plain PHP models (statistics, budgets, quick-entry, etc.).
+  Pdf/                 - PDF conversion (mPDF converter and context).
+  Plugin/              - Kimai plugin framework (package manager, metadata).
+  Project/             - Project service, duplication, statistics.
+  Reporting/           - Reporting system (department monthly projects, month-by-user,
+                        weekly/yearly user lists, project reports).
+  Repository/          - Doctrine repositories.
+                        CUSTOM: PublicHolidayRepository.
+                        MODIFIED: TimesheetRepository (findRecordForDate, lock
+                        helpers), User/Activity/Project/Invoice/Department
+                        repositories (supervisor/director scoped queries).
+  Saml/                - SAML SSO authentication (authenticator, provider).
+  Security/            - Security services (roles, permissions, user provider, 2FA).
+                        MODIFIED: RolePermissionManager (department permissions).
+  Timesheet/           - Timesheet core services (service, statistics, rounding,
+                        rates, tracking modes, lockdown).
+                        CUSTOM: Calculator/LunchBreakCalculator (auto 1-hour lunch
+                        deduction 13:00-14:00).
+  Twig/                - Twig extensions, filters, runtime helpers, security policy.
+  User/                - User services (login manager, permission, team).
+  Utils/               - Utility classes (color, duration, locale, menus, etc.).
+  Validator/           - Validation infrastructure + custom constraints.
+                        CUSTOM (KEY): Constraints/TimesheetSubmissionDeadline +
+                        Validator - blocks future dates; previous-month entries
+                        only during a 10-day grace period at month start.
+  Voter/               - Authorization voters.
+                        MODIFIED: TimesheetVoter (blocks edits on submitted/locked
+                        weeks), UserVoter (department/director logic),
+                        ReportingVoter (department reporting).
+  Webhook/             - AsWebhook attribute for webhook registration.
+  Widget/              - Dashboard widgets (amounts, durations, users, charts).
+  WorkingTime/         - Working-time calculation (day/month/year) and modes.
+
+================================================================================
+4. templates/ - TWIG UI TEMPLATES
+================================================================================
+  base.html.twig      - Main layout (Tabler theme, navbar, flash messages).
+  datatable.html.twig - Base layout for server-side data tables.
+  form.html.twig      - Minimal AJAX/modal-only form layout.
+  page_setup.html.twig - Base for filter/pagination pages.
+
+  about/              - License/about page.
+  activity/           - Activity CRUD screens.
+  bundles/            - Third-party overrides: API docs (NelmioApiDoc), Tabler
+                        (logo customized), TwigBundle error pages (403/404/500).
+  calendar/           - Calendar view with drag & drop editing.
+  contract/           - Contract/working-time status page (expected vs actual hours).
+  dashboard/          - Dashboard grid rendering user widgets.
+  default/            - Reusable form partials (form, delete, modal variants).
+  department/         - Department CRUD (central feature for this deployment).
+  doctor/             - CUSTOM system health-check page.
+  emails/             - Transactional email layouts (confirmations, password reset).
+  embeds/             - Reusable embedded widgets (budgets, comments, tables).
+  export/             - Export workflow + PDF renderer (customized for department).
+  favorite/           - Favorites/bookmark dropdown of recent entries.
+  form/               - Symfony form-theming blocks/widget library.
+  help/               - Help landing page.
+  invoice/            - Invoice module listing, templates, renderers.
+  ldap-sync/          - CUSTOM AD/LDAP manual sync page + log viewer.
+  leave/              - CUSTOM leave-entry form (creates leave timesheet entries).
+  macros/             - Twig macro library (widgets, tables, charts, search).
+  partials/           - Navbar/header partials; CUSTOM logo_login.html.twig and
+                        modified ticktack.html.twig (notification bell).
+  permission/         - Role/permission matrix editor.
+  plugin/             - Plugin manager listing.
+  project/            - Project CRUD screens.
+  public_holiday/     - CUSTOM public-holiday admin CRUD.
+  quick-entry/        - "Weekly hours" bulk timesheet entry form.
+  reporting/          - Reporting hub + reports; CUSTOM department/monthly_projects
+                        and project/daterange reports.
+  security/           - Login, 2FA, password reset, self-registration.
+  system-configuration/ - System configuration editor.
+  tags/               - Tag management.
+  team/               - Team CRUD.
+  timesheet/          - Timesheet list/edit; index customized (rejected rows,
+                        task column, department currency).
+  user/               - User administration and profile screens.
+  widget/             - Dashboard widget templates.
+  wizard/             - First-login wizard screens.
+
+================================================================================
+5. config/ - CONFIGURATION
+================================================================================
+  bundles.php         - Registers all Symfony bundles (Framework, Doctrine, Twig,
+                        Security, JMSSerializer, NelmioApiDoc, Tabler, 2FA, etc.).
+  locales.php         - Locale code -> date/time format map (~2000 entries).
+  preload.php         - Opcache preloading for production.
+  prepend_umask.php   - umask(0000) for world-writable cache/logs.
+  routes.yaml         - Route imports (main UI, /api, /auth, Swagger UI, 2FA).
+  services.yaml       - Service definitions, autowiring, explicit repos/services.
+  services_test.yaml  - Test-only service overrides.
+
+packages/
+  kimai.yaml          - Core app config; CUSTOM weekly_own_timesheet permission;
+                        default_begin 08:00; role/permission sets.
+  local.yaml          - CUSTOM site config: LDAP against 192.168.33.8 (PPDA AD),
+                        field mappings (mail, cn, department, company).
+  security.yaml       - Password hashers, LDAP+internal user providers, firewalls,
+                        2FA, role hierarchy (USER->TEAMLEAD->DIRECTOR->ADMIN->SUPER_ADMIN).
+  doctrine.yaml       - MySQL utf8mb4, UTC datetime types, ORM mapping.
+  doctrine_migrations.yaml - Migration storage + plugin migration path.
+  framework.yaml      - Secret, CSRF, session, mailer config.
+  fos_rest.yaml       - JSON REST API configuration.
+  jms_serializer.yaml - API serialization settings.
+  monolog.yaml        - Logging channels/handlers (login.log, deprecations.log).
+  nelmio_api_doc.yaml - API documentation (Swagger) settings.
+  nelmio_cors.yaml    - CORS for /api routes.
+  rate_limiter.yaml   - Rate limits (login, password reset, etc.).
+  scheb_2fa.yaml      - TOTP 2FA settings.
+  tabler.yaml         - UI theme options + FontAwesome icon mapping.
+  (routing, translation, twig, assets, cache, webpack_encore, web_profiler) - standard.
+
+routes/
+  dev/                - Dev-only routes (profiler, error pages).
+  test/               - Test-only routes.
+
+================================================================================
+6. var/plugins/WeeklySubmissionBundle - CUSTOM PLUGIN (KEY FEATURE)
+================================================================================
+Implements the weekly timesheet submission and multi-level approval workflow,
+Ugandan public holidays, overtime approval, and reminder emails.
+
+  WeeklySubmissionBundle.php      - Bundle class (Kimai plugin entry point).
+  composer.json                   - Plugin metadata (kimai/weekly-submission-bundle).
+  config/services.yaml            - Service wiring, widget/Twig extension tags.
+  config/routes.yaml              - Routes for staff/supervisor/admin/holiday controllers.
+  config/doctrine_migrations.yaml - Registers the plugin's migration path.
+
+  Entity/
+    WeeklySubmission.php  - Weekly submission entity (statuses: draft, submitted,
+                            supervisor_approved, manager_approved, hr_approved,
+                            approved, rejected; approver notes, overtime fields).
+    PublicHoliday.php     - Public holiday entity (table kimai2_public_holidays).
+
+  Repository/
+    WeeklySubmissionRepository.php - Core workflow logic (899 lines): scoping
+                            queries, approver derivation (directors, team leads,
+                            regional managers, ED office, Senior Officers),
+                            notification counts, date-lock helpers.
+    PublicHolidayRepository.php    - findBetween(start, end).
+
+  Controller/
+    StaffController.php   - "My Weekly Timesheet": view, submit (Fri/Mon >= 08:00
+                            window, weekend/empty rejected, holidays auto-handled,
+                            overtime computed), batch submit.
+    SupervisorController.php - Pending approval queues, approve/reject/reassign,
+                            weekly & monthly reports, notification bell, batch actions.
+    AdminController.php   - All submissions, 8-week overview matrix + PDF export,
+                            approval-rights management.
+    PublicHolidayController.php - JSON calendar events for holidays.
+
+  EventSubscriber/
+    MenuSubscriber.php          - Builds the "Weekly Submission" menu (staff,
+                                  supervisor pending badge, overtime, admin).
+    CalendarSubscriber.php      - Adds public-holiday source to the calendar.
+    DashboardSubscriber.php     - Adds pending-approvals widget for supervisors.
+    TimesheetHolidaySubscriber.php - Auto-converts leave entries on holiday dates
+                                  to "Public Holiday" activity.
+
+  Mail/
+    WeeklySubmissionMailer.php  - Renders/sends all workflow emails via KimaiMailer.
+
+  Twig/
+    WeeklySubmissionExtension.php - Twig functions is_rejected_period(),
+                                  submission_level() (approval progress bar).
+
+  Widget/
+    PendingApprovalsWidget.php  - Dashboard widget with pending approval count.
+
+  Command/  (intended for cron)
+    SeedHolidaysCommand         - Seeds Ugandan holidays 2026-2045.
+    SendWeeklyRemindersCommand  - Emails staff who haven't submitted.
+    SendApprovalRemindersCommand - Emails approvers with pending items.
+    SendTestReminderCommand     - Test reminder email.
+    BackfillApproversCommand    - Backfills stored step2 approvers.
+
+  Migrations/                   - 9 migrations (weekly submissions table, holidays,
+                                  manager/hr fields, overtime, step2 approvers,
+                                  workflow_type, director_id on departments).
+
+  Resources/views/              - 23 Twig templates: admin (index, overview,
+                                  overview_pdf, approval_rights), emails (9),
+                                  staff/index, supervisor (history, pending,
+                                  reports, bell, view), widget/pending_approvals.
+
+================================================================================
+7. migrations/
+================================================================================
+75 Doctrine migration PHP files (namespace DoctrineMigrations) representing the
+Kimai core schema evolution, plus custom ones (invoice-template fields,
+kimai2_public_holidays). MigrationTemplate.txt is the custom template for new
+migrations.
+
+================================================================================
+8. tests/
+================================================================================
+Full PHPUnit suite mirroring src/ (Validator, Voter, Timesheet, WorkingTime,
+Controller, Repository, Widget, etc.). bootstrap.php and KernelTestTrait.php
+provide test helpers. Config in phpunit.xml.dist, static analysis in
+tests/phpstan.neon and tests/phpstan-doctrine.php.
+
+================================================================================
+9. translations/
+================================================================================
+602 XLIFF (.xlf) catalogs across domains: messages, validators, flashmessages,
+reporting, tasks, teams, plugins, kiosk, wizard, invoice-*, daterangepicker, etc.
+English (messages.en.xlf) is the source language; translator falls back to "en".
+
+================================================================================
+10. assets/  and  public/
+================================================================================
+assets/
+  app.js, calendar.js, chart.js, invoice.js, etc. - Webpack Encore entry points.
+  js/    - Kimai JS framework (configuration loader, forms, plugins, widgets).
+  sass/  - SCSS sources (layout, forms, tables, invoice, calendar, error, RTL).
+
+public/
+  index.php            - Front controller (web entry point).
+  build/               - Compiled assets (app.css/js, calendar, charts, fonts).
+  bundles/             - Third-party public assets (NelmioApiDoc, Tabler).
+  ppda.jpg             - CUSTOM branding logo (used on login page).
+  favicon/, manifest.json, robots.txt, .htaccess - standard web files.
+
+================================================================================
+11. ROOT UTILITY SCRIPTS
+================================================================================
+  bin/console          - Symfony console entrypoint (kimai:* commands).
+  create_holidays.php  - Daily cron: insert "Public Holiday" entries for all
+                         non-admin users on Uganda public holidays.
+  create_teams.php     - One-time: wipe/rebuild AD-based teams and memberships.
+  import_ldap_users.php- One-time: import LDAP users (service accounts disabled).
+  sync-ad.sh           - Cron: run kimai:ldap:sync with logging/rotation.
+  setup-nginx.sh       - Sets up nginx vhost for https://timesheet.ppda.go.ug.
+  kimai.sh             - Official maintenance script (update, permissions, plugins).
+
+================================================================================
+12. CUSTOMIZATIONS / MODIFIED STOCK FILES (REFERENCE)
+================================================================================
+NEW FILES (not in stock Kimai):
+  src/Command/{BulkPassword,LdapSync,MigrateAuth,TimesheetReminder,ProbeProfiles}Command.php
+  src/Controller/{LeaveController,LdapSyncController}.php
+  src/Controller/Admin/PublicHolidayController.php
+  src/Entity/PublicHoliday.php
+  src/Form/{PublicHolidayEditForm,UserDepartmentsType}.php
+  src/Form/Model/TaskRow.php, src/Form/Type/TaskRowType.php
+  src/Ldap/LdapSyncService.php
+  src/Repository/PublicHolidayRepository.php
+  src/Timesheet/Calculator/LunchBreakCalculator.php
+  src/Validator/Constraints/{TimesheetSubmissionDeadline,TimesheetSubmissionDeadlineValidator}.php
+  var/plugins/WeeklySubmissionBundle/** (entire plugin)
+  templates/doctor/, templates/ldap-sync/, templates/leave/, templates/public_holiday/
+  templates/reporting/department/, templates/reporting/project/daterange.html.twig
+  config/packages/local.yaml
+
+MODIFIED STOCK FILES (highlights):
+  src/Constants.php                       - Rebranded to "PPDA Timesheet".
+  src/Kernel.php                          - Registers WeeklySubmissionBundle.
+  src/Entity/User.php, src/Entity/Department.php - Director roles/dept relations.
+  src/Controller/TimesheetController.php  - Locked weeks, 8 AM rule, leave flow.
+  src/Repository/TimesheetRepository.php  - Date-lock & scoped queries.
+  src/Validator/.../TimesheetSubmissionDeadlineValidator.php - Grace period 5->10 days.
+  src/Form/TimesheetEditForm.php          - Leave/submission fields.
+  src/EventSubscriber/MenuSubscriber.php  - Custom menu entries.
+  src/Voter/{Timesheet,User,Reporting}Voter.php - Submission-lock & dept authorization.
+  templates/partials/{ticktack,logo_login}.html.twig, templates/bundles/TablerBundle/includes/logo.html.twig
+  templates/timesheet/index.html.twig     - Rejected rows, task column, dept currency.
+
+================================================================================
+13. ORGANIZATION-SPECIFIC CONFIGURATION
+================================================================================
+  - AD/LDAP: host 192.168.33.8:389, base dc=ppda,dc=go,dc=ug, bind user
+    CN=itop_user,OU=Service Accounts.
+  - Admin user: userman@ppda.go.ug; email reply-to noreply@timesheet.ppda.go.ug.
+  - Manager HR approver is hardcoded as user id 271 in the plugin repository.
+  - Reminder window: Friday 4:00 PM - Saturday 7:00 PM (Africa/Kampala).
+  - Domain: timesheet.ppda.go.ug.
+================================================================================
+END OF PROGRAM GUIDE
+================================================================================
