@@ -257,7 +257,7 @@ class WeeklySubmissionRepository extends EntityRepository
      */
     public function findPendingForSupervisor(User $supervisor): array
     {
-        $userIds = $this->getViewableUserIds($supervisor);
+        $userIds = $this->getSupervisedUserIds($supervisor);
 
         $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $supervisor->getId()));
 
@@ -411,7 +411,7 @@ class WeeklySubmissionRepository extends EntityRepository
 
     public function countPendingForSupervisor(User $supervisor): int
     {
-        $userIds = $this->getViewableUserIds($supervisor);
+        $userIds = $this->getSupervisedUserIds($supervisor);
 
         $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $supervisor->getId()));
 
@@ -454,88 +454,6 @@ class WeeklySubmissionRepository extends EntityRepository
             ->setParameter('userIds', $userIds);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
-    }
-
-    /**
-     * @return WeeklySubmission[]
-     */
-    public function findManagerApprovedForHR(User $hrUser): array
-    {
-        $userIds = $this->getViewableUserIds($hrUser);
-        $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $hrUser->getId()));
-
-        $qb = $this->createQueryBuilder('s');
-        $qb->select('s')
-            ->where('s.status = :status')
-            ->setParameter('status', WeeklySubmission::STATUS_MANAGER_APPROVED)
-            ->andWhere('s.isOvertime = :overtime')
-            ->setParameter('overtime', true)
-            ->orderBy('s.weekStart', 'DESC');
-
-        if (!empty($userIds)) {
-            $qb->andWhere('s.user IN (:userIds)');
-            $qb->setParameter('userIds', $userIds);
-        }
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * Find overtime submissions pending Manager HR approval (STATUS_MANAGER_APPROVED + overtime).
-     * @return WeeklySubmission[]
-     */
-    public function findManagerHrPending(): array
-    {
-        $qb = $this->createQueryBuilder('s');
-        $qb->select('s')
-            ->where('s.status = :status')
-            ->setParameter('status', WeeklySubmission::STATUS_MANAGER_APPROVED)
-            ->andWhere('s.isOvertime = :overtime')
-            ->setParameter('overtime', true)
-            ->orderBy('s.weekStart', 'DESC');
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * Find overtime submissions pending HR/Admin final approval (STATUS_HR_APPROVED).
-     * @return WeeklySubmission[]
-     */
-    public function findHrApprovedPendingHrFinal(User $hrUser): array
-    {
-        $userIds = $this->getViewableUserIds($hrUser);
-        $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $hrUser->getId()));
-
-        $qb = $this->createQueryBuilder('s');
-        $qb->select('s')
-            ->where('s.status = :status')
-            ->setParameter('status', WeeklySubmission::STATUS_HR_APPROVED)
-            ->andWhere('s.isOvertime = :overtime')
-            ->setParameter('overtime', true)
-            ->orderBy('s.weekStart', 'DESC');
-
-        if (!empty($userIds)) {
-            $qb->andWhere('s.user IN (:userIds)');
-            $qb->setParameter('userIds', $userIds);
-        }
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * Check if a user is the Manager HR (user id 271).
-     */
-    public function isManagerHr(User $user): bool
-    {
-        return $user->getId() === 271;
-    }
-
-    /**
-     * Find the Manager HR user entity (id 271).
-     */
-    public function getManagerHrUser(): ?User
-    {
-        return $this->getEntityManager()->getRepository(User::class)->find(271);
     }
 
     /**
@@ -746,7 +664,7 @@ class WeeklySubmissionRepository extends EntityRepository
 
     public function countPendingNotifications(User $user): array
     {
-        $submittedIds = $this->getViewableUserIds($user);
+        $submittedIds = $this->getSupervisedUserIds($user);
         $managerIds = $this->getSupervisorApprovedUserIds($user);
 
         $actionCount = 0;
@@ -789,29 +707,6 @@ class WeeklySubmissionRepository extends EntityRepository
 
         $qb2->andWhere($managerConditions);
         $actionCount += (int) $qb2->getQuery()->getSingleScalarResult();
-
-        // Count STATUS_MANAGER_APPROVED overtime submissions needing Manager HR action
-        if ($this->isManagerHr($user)) {
-            $qbManagerHr = $this->createQueryBuilder('s');
-            $qbManagerHr->select('COUNT(s.id)')
-                ->where('s.status = :managerApproved')
-                ->setParameter('managerApproved', WeeklySubmission::STATUS_MANAGER_APPROVED)
-                ->andWhere('s.isOvertime = :overtime')
-                ->setParameter('overtime', true);
-            $actionCount += (int) $qbManagerHr->getQuery()->getSingleScalarResult();
-        }
-
-        // Count STATUS_HR_APPROVED overtime submissions needing HR/Admin final action
-        $hasHrRole = in_array('ROLE_ADMIN', $user->getRoles(), true) || in_array('ROLE_HUMAN_RESOURCES', $user->getRoles(), true);
-        if ($hasHrRole) {
-            $qbHrFinal = $this->createQueryBuilder('s');
-            $qbHrFinal->select('COUNT(s.id)')
-                ->where('s.status = :hrApproved')
-                ->setParameter('hrApproved', WeeklySubmission::STATUS_HR_APPROVED)
-                ->andWhere('s.isOvertime = :overtime2')
-                ->setParameter('overtime2', true);
-            $actionCount += (int) $qbHrFinal->getQuery()->getSingleScalarResult();
-        }
 
         // Count user's own submissions with recent activity (last 7 days)
         $sevenDaysAgo = new \DateTimeImmutable('-7 days');

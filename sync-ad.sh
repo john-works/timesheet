@@ -21,7 +21,7 @@ echo "========================================" >> "$LOG_FILE"
 echo "LDAP Sync started: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 
 cd "$APP_DIR"
-php bin/console kimai:ldap:sync --skip-disabled --skip-teams 2>&1 | tee -a "$LOG_FILE"
+php bin/console kimai:ldap:sync --skip-disabled 2>&1 | tee -a "$LOG_FILE"
 
 EXIT_CODE=${PIPESTATUS[0]}
 

@@ -86,11 +86,7 @@
     {% endif %}
 {% endblock %}
 
-{% block password_forgotten %}
-    {% if config('passwordResetActive') %}
-        {{ parent() }}
-    {% endif %}
-{% endblock %}
+{% block password_forgotten %}{% endblock %}
 
 {% block registration %}
     {% if config('selfRegistrationActive') %}

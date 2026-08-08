@@ -128,43 +128,6 @@ class WeeklySubmissionMailer
         $this->mailer->sendToUser($supervisor, $email);
     }
 
-    public function sendOvertimeToManagerHrNotification(WeeklySubmission $submission, User $managerHr): void
-    {
-        $start = $submission->getWeekStart()->format('Y-m-d');
-        $end = $submission->getWeekEnd()->format('Y-m-d');
-
-        $html = $this->twig->render('@WeeklySubmission/emails/overtime_to_manager_hr.html.twig', [
-            'submission' => $submission,
-            'staff' => $submission->getUser(),
-            'weekStart' => $start,
-            'weekEnd' => $end,
-        ]);
-
-        $email = (new Email())
-            ->subject(sprintf('Overtime approval required: %s (%s - %s) - %d overtime hours', $submission->getUser()->getDisplayName(), $start, $end, $submission->getOvertimeHours()))
-            ->html($html);
-
-        $this->mailer->sendToUser($managerHr, $email);
-    }
-
-    public function sendManagerHrApprovedNotification(WeeklySubmission $submission): void
-    {
-        $start = $submission->getWeekStart()->format('Y-m-d');
-        $end = $submission->getWeekEnd()->format('Y-m-d');
-
-        $html = $this->twig->render('@WeeklySubmission/emails/manager_hr_approved.html.twig', [
-            'submission' => $submission,
-            'weekStart' => $start,
-            'weekEnd' => $end,
-        ]);
-
-        $email = (new Email())
-            ->subject(sprintf('Manager HR approved your overtime submission (%s - %s) - pending HR final approval', $start, $end))
-            ->html($html);
-
-        $this->mailer->sendToUser($submission->getUser(), $email);
-    }
-
     public function sendSubmissionReminder(User $user, ?\DateTimeImmutable $weekStart = null): void
     {
         if ($weekStart === null) {

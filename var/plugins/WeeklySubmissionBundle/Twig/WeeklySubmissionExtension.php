@@ -38,7 +38,7 @@ class WeeklySubmissionExtension extends AbstractExtension
     public function submissionLevel(WeeklySubmission $submission): array
     {
         $twoStep = $submission->getUser()->hasTwoStepWorkflow();
-        $total = $twoStep ? 4 : 3;
+        $total = $twoStep ? 3 : 2;
         $status = $submission->getStatus();
         $reassigned = $submission->getReassignedTo();
 
@@ -48,12 +48,8 @@ class WeeklySubmissionExtension extends AbstractExtension
             case WeeklySubmission::STATUS_SUBMITTED:
                 return ['level' => 1, 'total' => $total, 'label' => 'Step 1 Approver', 'class' => 'bg-primary', 'approver' => ($reassigned ?? $submission->getUser()->getSupervisor())?->getDisplayName()];
             case WeeklySubmission::STATUS_SUPERVISOR_APPROVED:
-                $step2 = $twoStep ? $submission->getUser()->getStep2Approver() : null;
-                return ['level' => 2, 'total' => 4, 'label' => 'Step 2 Approver', 'class' => 'bg-info', 'approver' => ($reassigned ?? $step2)?->getDisplayName()];
-            case WeeklySubmission::STATUS_MANAGER_APPROVED:
-                return ['level' => $twoStep ? 3 : 2, 'total' => $total, 'label' => 'Manager HR (Overtime)', 'class' => 'bg-warning', 'approver' => ($reassigned ?? $this->submissionRepository->getManagerHrUser())?->getDisplayName()];
-            case WeeklySubmission::STATUS_HR_APPROVED:
-                return ['level' => $twoStep ? 4 : 3, 'total' => $total, 'label' => 'HR/Admin (Overtime)', 'class' => 'bg-warning', 'approver' => 'HR/Admin'];
+                $step2 = $submission->getUser()->getStep2Approver();
+                return ['level' => 2, 'total' => $total, 'label' => 'Step 2 Approver', 'class' => 'bg-info', 'approver' => ($reassigned ?? $step2)?->getDisplayName()];
             case WeeklySubmission::STATUS_APPROVED:
                 return ['level' => null, 'total' => $total, 'label' => 'Fully Approved', 'class' => 'bg-success', 'approver' => null];
             case WeeklySubmission::STATUS_REJECTED:

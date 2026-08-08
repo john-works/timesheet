@@ -2,10 +2,7 @@
 
 namespace App\Ldap;
 
-use App\Entity\Department;
-use App\Entity\Team;
 use App\Entity\User;
-use App\Repository\DepartmentRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -15,7 +12,6 @@ final class LdapSyncService
 
     public function __construct(
         private readonly UserRepository $userRepository,
-        private readonly DepartmentRepository $departmentRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {}
 
@@ -30,18 +26,13 @@ final class LdapSyncService
         string $baseDn,
         bool $dryRun = false,
         bool $skipDisabled = false,
-        bool $clean = false,
-        bool $skipTeams = false,
     ): array {
         $this->messages = [];
 
         $stat = [
-            'departments_created' => 0,
-            'teams_created' => 0,
             'users_created' => 0,
             'users_updated' => 0,
             'users_skipped' => 0,
-            'teamleads_set' => 0,
         ];
 
         try {
@@ -67,11 +58,7 @@ final class LdapSyncService
             $this->entityManager->beginTransaction();
 
             try {
-                if (!$dryRun && $clean) {
-                    $this->cleanExisting();
-                }
-
-                $stat = $this->syncUsers($ldapUsers, $dryRun, $stat, $skipTeams);
+                $stat = $this->syncUsers($ldapUsers, $dryRun, $stat);
 
                 if ($dryRun) {
                     $this->entityManager->rollback();
@@ -236,7 +223,7 @@ final class LdapSyncService
     /**
      * @param list<array{samaccountname: string, mail: string, displayname: string, title: string, department: string, company: string, manager: string, distinguishedname: string, unit: string, ous: list<string>, enabled: bool}> $ldapUsers
      */
-    private function syncUsers(array $ldapUsers, bool $dryRun, array $stat, bool $skipTeams = false): array
+    private function syncUsers(array $ldapUsers, bool $dryRun, array $stat): array
     {
         $existingUsers = $this->userRepository->findAll();
         $usersByUsername = [];
@@ -253,15 +240,10 @@ final class LdapSyncService
             }
         }
 
-        $departmentMap = [];
-        $units = [];
-
         foreach ($ldapUsers as $ldapUser) {
             $email = $ldapUser['mail'];
             $username = $email;
             $this->messages[] = 'Processing: ' . $username;
-            $departmentName = $ldapUser['department'];
-            $unitName = $ldapUser['unit'];
 
             $existingUser = $usersByUsername[$username] ?? $usersByEmail[$email] ?? $usersByUsername[strtolower($ldapUser['samaccountname'])] ?? null;
 
@@ -273,7 +255,7 @@ final class LdapSyncService
 
             if ($existingUser === null) {
                 if ($dryRun) {
-                    $this->messages[] = "  WOULD CREATE: $username ($email, unit: $unitName)";
+                    $this->messages[] = "  WOULD CREATE: $username ($email)";
                     continue;
                 }
 
@@ -288,14 +270,14 @@ final class LdapSyncService
                 $user->setRoles([User::DEFAULT_ROLE]);
 
                 $user->setPreferenceValue('ldap_dn', $ldapUser['distinguishedname']);
-                if ($departmentName !== '') {
-                    $user->setPreferenceValue('ad_department', $departmentName);
+                if ($ldapUser['department'] !== '') {
+                    $user->setPreferenceValue('ad_department', $ldapUser['department']);
                 }
                 if (!empty($ldapUser['ous'])) {
                     $user->setPreferenceValue('ad_ou', implode(' > ', $ldapUser['ous']));
                 }
-                if ($unitName !== '') {
-                    $user->setPreferenceValue('ad_unit', $unitName);
+                if ($ldapUser['unit'] !== '') {
+                    $user->setPreferenceValue('ad_unit', $ldapUser['unit']);
                 }
                 if ($ldapUser['company'] !== '') {
                     $user->setPreferenceValue('ad_company', $ldapUser['company']);
@@ -322,14 +304,14 @@ final class LdapSyncService
                 $user->setTitle($ldapUser['title'] ?: null);
                 $user->setEnabled($ldapUser['enabled']);
                 $user->setPreferenceValue('ldap_dn', $ldapUser['distinguishedname']);
-                if ($departmentName !== '') {
-                    $user->setPreferenceValue('ad_department', $departmentName);
+                if ($ldapUser['department'] !== '') {
+                    $user->setPreferenceValue('ad_department', $ldapUser['department']);
                 }
                 if (!empty($ldapUser['ous'])) {
                     $user->setPreferenceValue('ad_ou', implode(' > ', $ldapUser['ous']));
                 }
-                if ($unitName !== '') {
-                    $user->setPreferenceValue('ad_unit', $unitName);
+                if ($ldapUser['unit'] !== '') {
+                    $user->setPreferenceValue('ad_unit', $ldapUser['unit']);
                 }
                 if ($ldapUser['company'] !== '') {
                     $user->setPreferenceValue('ad_company', $ldapUser['company']);
@@ -342,134 +324,8 @@ final class LdapSyncService
                 $stat['users_updated']++;
                 $this->messages[] = "  UPDATED: $username";
             }
-
-            if ($ldapUser['distinguishedname'] !== '') {
-                $usersByDn[strtolower($ldapUser['distinguishedname'])] = $user;
-            }
-
-            if ($departmentName !== '' && !isset($departmentMap[$departmentName])) {
-                $department = $this->departmentRepository->findOneBy(['name' => $departmentName]);
-                if ($department === null && !$dryRun) {
-                    $department = new Department($departmentName);
-                    $department->setVisible(true);
-                    $department->setCountry('UG');
-                    $department->setTimezone('Africa/Kampala');
-                    if ($ldapUser['company'] !== '') {
-                        $department->setCompany($ldapUser['company']);
-                    }
-                    $this->entityManager->persist($department);
-                    $this->entityManager->flush();
-                    $stat['departments_created']++;
-                    $this->messages[] = "  CREATED DEPARTMENT: $departmentName";
-                }
-                if ($department !== null) {
-                    $departmentMap[$departmentName] = $department;
-                }
-            }
-
-            if ($unitName !== '') {
-                $unitKey = $departmentName . '::' . $unitName;
-                if (!isset($units[$unitKey])) {
-                    if ($departmentName !== '') {
-                        $teamName = "$unitName ($departmentName)";
-                    } else {
-                        continue;
-                    }
-                    $units[$unitKey] = [
-                        'department' => $departmentName,
-                        'unit' => $unitName,
-                        'teamName' => $teamName,
-                        'users' => [],
-                        'managerDn' => null,
-                    ];
-                }
-                $units[$unitKey]['users'][] = $username;
-                if ($ldapUser['manager'] !== '' && $units[$unitKey]['managerDn'] === null) {
-                    $units[$unitKey]['managerDn'] = $ldapUser['manager'];
-                }
-            }
-        }
-
-        if ($dryRun) {
-            if ($skipTeams) {
-                $this->messages[] = '  (team creation skipped)';
-            } else {
-                $this->messages[] = 'Would create teams for each unit:';
-                foreach ($units as $unitInfo) {
-                    $this->messages[] = "  {$unitInfo['teamName']}";
-                }
-                $stat['teams_created'] = \count($units);
-            }
-            return $stat;
-        }
-
-        if (!$skipTeams) {
-        foreach ($units as $unitKey => $unitInfo) {
-            $teamName = $unitInfo['teamName'];
-            $department = $unitInfo['department'] !== '' ? ($departmentMap[$unitInfo['department']] ?? null) : null;
-
-            $existingTeam = $this->entityManager->getRepository(Team::class)->findOneBy(['name' => $teamName]);
-            if ($existingTeam !== null) {
-                $team = $existingTeam;
-                $this->messages[] = "  FOUND EXISTING TEAM: $teamName";
-            } else {
-                $team = new Team($teamName);
-                $this->entityManager->persist($team);
-                $stat['teams_created']++;
-                $this->messages[] = "  CREATED TEAM: $teamName";
-            }
-
-            if ($department !== null && !$department->getTeams()->contains($team)) {
-                $department->addTeam($team);
-                $this->entityManager->persist($department);
-            }
-
-            foreach ($unitInfo['users'] as $uname) {
-                $u = $usersByUsername[$uname] ?? null;
-                if ($u !== null && !$team->hasUser($u)) {
-                    $team->addUser($u);
-                    $this->messages[] = "  ADDED $uname TO $teamName";
-                }
-            }
-
-            if ($unitInfo['managerDn'] !== null) {
-                $managerDn = strtolower($unitInfo['managerDn']);
-                $manager = $usersByDn[$managerDn] ?? null;
-                if ($manager !== null && !$team->isTeamlead($manager)) {
-                    $team->addTeamlead($manager);
-                    $stat['teamleads_set']++;
-                    $this->messages[] = "  SET TEAM LEAD: {$manager->getUserIdentifier()} FOR $teamName";
-                } else {
-                    $this->messages[] = "  WARNING: Manager DN not found in imported users: {$unitInfo['managerDn']}";
-                }
-            }
-
-            $this->entityManager->persist($team);
-            $this->entityManager->flush();
-        }
-        } else {
-            $this->messages[] = 'Team creation skipped (--skip-teams).';
         }
 
         return $stat;
-    }
-
-    private function cleanExisting(): void
-    {
-        $teams = $this->entityManager->getRepository(Team::class)->findBy([], ['id' => 'ASC']);
-        foreach ($teams as $team) {
-            foreach ($team->getDepartments() as $dept) {
-                $dept->removeTeam($team);
-            }
-            $this->entityManager->remove($team);
-        }
-
-        $departments = $this->departmentRepository->findAll();
-        foreach ($departments as $dept) {
-            $this->entityManager->remove($dept);
-        }
-
-        $this->entityManager->flush();
-        $this->messages[] = 'Removed all existing teams and departments.';
     }
 }

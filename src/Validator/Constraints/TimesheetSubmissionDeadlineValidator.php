@@ -49,12 +49,12 @@ final class TimesheetSubmissionDeadlineValidator extends ConstraintValidator
             return; // Current month, past dates are allowed
         }
 
-        // Rule 3: Previous month - only during the 10-day grace period
+        // Rule 3: Previous month - only during the 5-day grace period
         $isPreviousMonth = ($entryYear === $currentYear && $entryMonth === $currentMonth - 1)
             || ($entryYear === $currentYear - 1 && $entryMonth === 12 && $currentMonth === 1);
 
         if ($isPreviousMonth) {
-            if ($currentDay <= 10) {
+            if ($currentDay <= 5) {
                 // Within grace period - allow submission
                 return;
             } else {

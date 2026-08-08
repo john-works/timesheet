@@ -96,8 +96,6 @@ class SendWeeklyRemindersCommand extends Command
             if ($submission !== null && (
                 $submission->isSubmitted()
                 || $submission->isSupervisorApproved()
-                || $submission->isManagerApproved()
-                || $submission->isHrApproved()
                 || $submission->isApproved()
             )) {
                 $alreadySubmitted++;

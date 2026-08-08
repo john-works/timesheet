@@ -20,7 +20,7 @@ final class Version20260716000000 extends AbstractMigration
             ADD COLUMN is_overtime TINYINT(1) NOT NULL DEFAULT 0,
             ADD COLUMN overtime_hours INT NOT NULL DEFAULT 0,
             ADD COLUMN hr_approved_by INT DEFAULT NULL,
-            ADD COLUMN hr_approved_at DATETIME(6) DEFAULT NULL,
+            ADD COLUMN hr_approved_at DATETIME DEFAULT NULL,
             ADD COLUMN hr_notes TEXT DEFAULT NULL');
     }
 

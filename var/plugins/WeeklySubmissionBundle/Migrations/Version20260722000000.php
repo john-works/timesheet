@@ -18,7 +18,7 @@ final class Version20260722000000 extends AbstractMigration
     {
         $this->addSql('ALTER TABLE kimai2_weekly_submissions
             ADD COLUMN manager_hr_approved_by INT DEFAULT NULL,
-            ADD COLUMN manager_hr_approved_at DATETIME(6) DEFAULT NULL,
+            ADD COLUMN manager_hr_approved_at DATETIME DEFAULT NULL,
             ADD COLUMN manager_hr_notes TEXT DEFAULT NULL');
     }
 

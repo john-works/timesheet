@@ -104,7 +104,7 @@ final class StaffController extends AbstractController
 
         $lastWeekStart = $currentWeekStart->modify('-7 days');
         $lastWeekSubmission = $this->repository->findForUserAndWeek($user, $lastWeekStart);
-        $lastWeekNotSubmitted = ($lastWeekSubmission === null || (!$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved() && !$lastWeekSubmission->isManagerApproved() && !$lastWeekSubmission->isHrApproved()));
+        $lastWeekNotSubmitted = ($lastWeekSubmission === null || (!$lastWeekSubmission->isSubmitted() && !$lastWeekSubmission->isApproved() && !$lastWeekSubmission->isSupervisorApproved()));
 
         $isCurrentWeek = ($weekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d'));
 
@@ -142,7 +142,6 @@ final class StaffController extends AbstractController
             'rejectedWeeks' => $rejectedWeeks,
             'currentWeekStart' => $currentWeekStart,
             'currentWeekDuration' => $currentWeekDuration,
-            'managerHrUser' => $this->repository->getManagerHrUser(),
             'lastWeekNotSubmitted' => $lastWeekNotSubmitted,
         ]);
     }
@@ -403,13 +402,13 @@ final class StaffController extends AbstractController
         $currentMonth = (int) $now->format('m');
         $currentYear = (int) $now->format('Y');
         $dayOfMonth = (int) $now->format('d');
-        $gracePeriod = ($dayOfMonth <= 10);
+        $gracePeriod = ($dayOfMonth <= 5);
 
         for ($i = 0; $i < 8; $i++) {
             $weekMonth = (int) $checkWeek->format('m');
             $weekYear = (int) $checkWeek->format('Y');
 
-            // Month boundary rule: skip previous month weeks unless within 10-day grace period
+            // Month boundary rule: skip previous month weeks unless within 5-day grace period
             if ($weekYear < $currentYear || ($weekYear === $currentYear && $weekMonth < $currentMonth)) {
                 if (!$gracePeriod) {
                     $checkWeek = $checkWeek->modify('-7 days');
