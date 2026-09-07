@@ -410,6 +410,16 @@ final class AdminController extends AbstractController
         $this->entityManager->persist($staffUser);
         $this->entityManager->flush();
 
+        // If the workflow was changed, auto-finalize any pending submissions that no
+        // longer have a Step 2 approver (e.g. switched to single-level).
+        $finalized = $this->repository->autoFinalizeSingleLevelApprovals($staffUser);
+        if ($finalized > 0) {
+            $this->addFlash('success', sprintf(
+                '%d pending submission(s) for this user were auto-finalized as approved.',
+                $finalized
+            ));
+        }
+
         $this->addFlash('success', sprintf(
             'Approval rights updated for %s. Workflow: %s, Step 1 approver: %s, Step 2 approver: %s',
             $staffUser->getDisplayName(),

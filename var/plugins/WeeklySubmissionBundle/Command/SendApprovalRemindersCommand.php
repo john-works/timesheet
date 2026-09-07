@@ -43,68 +43,30 @@ class SendApprovalRemindersCommand extends Command
             return Command::SUCCESS;
         }
 
+        // Auto-finish single-level flows that are stuck at the supervisor stage.
+        $finalized = $this->submissionRepository->autoFinalizeSingleLevelApprovals();
+        if ($finalized > 0) {
+            $output->writeln(sprintf('<info>Auto-finalized %d single-level approval(s).</info>', $finalized));
+        }
+
         $conn = $this->em->getConnection();
 
-        // Find all distinct potential approvers who have pending items.
-        // Approvers can be: direct supervisors, team leads, department directors,
-        // or users who have submissions reassigned to them.
+        // Only ever remind the single user who is the CURRENT approver for each
+        // pending submission, following the configured approval flow:
+        //   submitted           -> reassigned_to, else the staff user's supervisor (Step 1)
+        //   supervisor_approved -> reassigned_to, else the staff user's Step 2 approver
+        $rows = $conn->fetchAllAssociative("
+            SELECT DISTINCT CASE
+                WHEN ws.status = 'submitted' THEN COALESCE(ws.reassigned_to, u.supervisor_id)
+                ELSE COALESCE(ws.reassigned_to, u.step2_approver_id)
+            END AS approver_id
+            FROM kimai2_weekly_submissions ws
+            JOIN kimai2_users u ON u.id = ws.user_id
+            WHERE ws.status IN ('submitted', 'supervisor_approved')
+              AND u.enabled = 1
+        ");
+
         $approverIds = [];
-
-        // 1. Supervisors of users with STATUS_SUBMITTED
-        $rows = $conn->fetchAllAssociative("
-            SELECT DISTINCT COALESCE(ws.reassigned_to, u.supervisor_id) AS approver_id
-            FROM kimai2_weekly_submissions ws
-            JOIN kimai2_users u ON u.id = ws.user_id
-            WHERE ws.status = 'submitted' AND u.enabled = 1
-        ");
-        foreach ($rows as $row) {
-            if (!empty($row['approver_id'])) {
-                $approverIds[(int) $row['approver_id']] = true;
-            }
-        }
-
-        // 2. Team leads whose team members have STATUS_SUBMITTED
-        $rows = $conn->fetchAllAssociative("
-            SELECT DISTINCT ut_lead.user_id AS approver_id
-            FROM kimai2_weekly_submissions ws
-            JOIN kimai2_users_teams ut_member ON ut_member.user_id = ws.user_id
-            JOIN kimai2_users_teams ut_lead ON ut_lead.team_id = ut_member.team_id AND ut_lead.teamlead = 1
-            WHERE ws.status = 'submitted'
-        ");
-        foreach ($rows as $row) {
-            if (!empty($row['approver_id'])) {
-                $approverIds[(int) $row['approver_id']] = true;
-            }
-        }
-
-        // 3. Department directors whose department members have STATUS_SUBMITTED
-        $rows = $conn->fetchAllAssociative("
-            SELECT DISTINCT d.director_id AS approver_id
-            FROM kimai2_weekly_submissions ws
-            JOIN kimai2_users u ON u.id = ws.user_id
-            JOIN kimai2_departments d ON d.director_id IS NOT NULL
-            WHERE ws.status = 'submitted'
-              AND (EXISTS (
-                    SELECT 1 FROM kimai2_teams t
-                    JOIN kimai2_departments_teams dt ON dt.team_id = t.id
-                    WHERE dt.department_id = d.id AND u.id IN (
-                        SELECT user_id FROM kimai2_users_teams WHERE team_id = t.id
-                    )
-              ))
-        ");
-        foreach ($rows as $row) {
-            if (!empty($row['approver_id'])) {
-                $approverIds[(int) $row['approver_id']] = true;
-            }
-        }
-
-        // 4. Approvers for STATUS_SUPERVISOR_APPROVED (managers/directors/reassigned)
-        $rows = $conn->fetchAllAssociative("
-            SELECT DISTINCT COALESCE(ws.reassigned_to, u.supervisor_id) AS approver_id
-            FROM kimai2_weekly_submissions ws
-            JOIN kimai2_users u ON u.id = ws.user_id
-            WHERE ws.status = 'supervisor_approved' AND u.enabled = 1
-        ");
         foreach ($rows as $row) {
             if (!empty($row['approver_id'])) {
                 $approverIds[(int) $row['approver_id']] = true;
@@ -132,7 +94,7 @@ class SendApprovalRemindersCommand extends Command
             $staffList = [];
 
             // Stage 1: submitted items
-            $submitted = $this->submissionRepository->findPendingForSupervisor($approver);
+            $submitted = $this->submissionRepository->findPendingForCurrentApprover($approver, WeeklySubmission::STATUS_SUBMITTED);
             foreach ($submitted as $s) {
                 $staffList[] = [
                     'staffName' => $s->getUser()->getDisplayName(),
@@ -142,7 +104,7 @@ class SendApprovalRemindersCommand extends Command
             }
 
             // Stage 2: supervisor_approved items
-            $approved = $this->submissionRepository->findSupervisorApprovedForManager($approver);
+            $approved = $this->submissionRepository->findPendingForCurrentApprover($approver, WeeklySubmission::STATUS_SUPERVISOR_APPROVED);
             foreach ($approved as $s) {
                 $staffList[] = [
                     'staffName' => $s->getUser()->getDisplayName(),

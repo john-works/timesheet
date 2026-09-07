@@ -77,8 +77,23 @@ final class LdapCredentialsSubscriber implements EventSubscriberInterface
         ]);
 
         if (!$bindResult) {
-            // if the login failed, simply return:
-            // the FormLogin authenticator will take over and the user can log in via internal database
+            // Strict AD-only auth for LDAP accounts: no internal database fallback,
+            // the user must authenticate against Active Directory.
+            if ($user->isLdapUser()) {
+                $message = 'Invalid AD credentials. Please check your password or contact your administrator.';
+                $error = $this->ldapManager->getLastBindError();
+                if ($error !== null) {
+                    $message .= ' (' . $error . ')';
+                }
+                $this->logger?->warning('LDAP login failed for LDAP user: username={username}, error={error}', [
+                    'username' => $user->getUserIdentifier(),
+                    'error' => $error,
+                ]);
+                throw new BadCredentialsException($message);
+            }
+
+            // internal (kimai) accounts that are not present in Active Directory:
+            // let the normal form_login authenticator handle the password check
             return;
         }
 

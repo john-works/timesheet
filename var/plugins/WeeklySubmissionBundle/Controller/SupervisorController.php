@@ -573,8 +573,9 @@ final class SupervisorController extends AbstractController
     private function canViewSubmission(WeeklySubmission $submission, User $user): bool
     {
         // Before the supervisor approves, only the direct supervisor (or the
-        // user the submission was reassigned to) may view it. Managers and
-        // directors get view access only after supervisor approval.
+        // user the submission was reassigned to) may view it. The configured
+        // Step 2 approver may also view the supervisee's timesheet, so all
+        // approvers in the approval flow can see it before acting.
         if ($submission->isSubmitted()) {
             if ($this->isGranted('ROLE_ADMIN')) {
                 return true;
@@ -590,8 +591,13 @@ final class SupervisorController extends AbstractController
             }
 
             $supervisor = $submission->getUser()->getSupervisor();
+            if ($supervisor !== null && $supervisor->getId() === $user->getId()) {
+                return true;
+            }
 
-            return $supervisor !== null && $supervisor->getId() === $user->getId();
+            $step2 = $submission->getUser()->getStep2Approver();
+
+            return $step2 !== null && $step2->getId() === $user->getId();
         }
 
         if ($this->isGranted('view_other_timesheet')) {

@@ -80,12 +80,6 @@ final class MenuSubscriber implements EventSubscriberInterface
 
         $this->addDivider($times);
 
-        if ($auth->isGranted('create_export')) {
-            $times->addChild(
-                new MenuItemModel('export', 'export', 'export', [], 'export')
-            );
-        }
-
         if ($auth->isGranted('view_other_timesheet') && ($user->isTeamlead() || $user->isSupervisor() || $user->canSeeAllData())) {
             $timesheets = new MenuItemModel('timesheet_admin', 'all_times', 'admin_timesheet', [], 'timesheet-team');
             $timesheets->setChildRoutes(['admin_timesheet_export', 'admin_timesheet_edit', 'admin_timesheet_create', 'admin_timesheet_multi_update']);

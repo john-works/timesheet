@@ -293,6 +293,108 @@ class WeeklySubmissionRepository extends EntityRepository
     }
 
     /**
+     * Find submissions currently pending the given user's action at the given stage,
+     * following the configured approval flow (mirrors canActOnSubmission/canActAsManager).
+     *
+     * - STATUS_SUBMITTED: the staff user's direct supervisor (Step 1) or reassigned user
+     * - STATUS_SUPERVISOR_APPROVED: the staff user's configured Step 2 approver or reassigned user
+     *
+     * Used only by the approval reminder command so a submission is only ever
+     * reminded to the single user it is currently waiting on.
+     *
+     * @return WeeklySubmission[]
+     */
+    public function findPendingForCurrentApprover(User $approver, string $status): array
+    {
+        $qb = $this->createQueryBuilder('s');
+        $qb->select('s')
+            ->where('s.status = :status')
+            ->setParameter('status', $status)
+            ->orderBy('s.weekStart', 'DESC');
+
+        $conditions = $qb->expr()->orX(
+            $qb->expr()->eq('s.reassignedTo', ':approver')
+        );
+        $qb->setParameter('approver', $approver);
+
+        if ($status === WeeklySubmission::STATUS_SUBMITTED) {
+            $userIds = $this->getSupervisedUserIds($approver);
+            $userIds = array_values(array_filter($userIds, fn(int $id) => $id !== $approver->getId()));
+            if (!empty($userIds)) {
+                $conditions->add($qb->expr()->in('s.user', ':userIds'));
+                $qb->setParameter('userIds', $userIds);
+            }
+        } else {
+            $step2Ids = $this->getStep2ApproverUserIds($approver);
+            if (!empty($step2Ids)) {
+                $conditions->add($qb->expr()->in('s.user', ':userIds'));
+                $qb->setParameter('userIds', $step2Ids);
+            }
+        }
+
+        $qb->andWhere($conditions);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * User IDs whose configured Step 2 approver is the given user (two-step workflows only,
+     * and Step 2 must never be the same person as Step 1).
+     * @return int[]
+     */
+    private function getStep2ApproverUserIds(User $user): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        $stmt = $conn->executeQuery(
+            "SELECT id FROM kimai2_users
+             WHERE step2_approver_id = :user_id
+               AND enabled = 1
+               AND COALESCE(workflow_type, '') != 'single'
+               AND (supervisor_id IS NULL OR supervisor_id != :user_id2)",
+            ['user_id' => $user->getId(), 'user_id2' => $user->getId()]
+        );
+
+        return array_map('intval', $stmt->fetchFirstColumn());
+    }
+
+    /**
+     * Auto-finalize submissions stuck at STATUS_SUPERVISOR_APPROVED whose owner is now on a
+     * single-level workflow (no Step 2 approver), so the flow completes without manual action.
+     * Mirrors hasTwoStepWorkflow() === false and getNextApprover() === null. Reassigned
+     * submissions are left untouched because someone is explicitly assigned to act on them.
+     *
+     * @return int Number of submissions finalized
+     */
+    public function autoFinalizeSingleLevelApprovals(?User $user = null): int
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = "UPDATE kimai2_weekly_submissions ws
+                JOIN kimai2_users u ON u.id = ws.user_id
+                SET ws.status = :approved
+                WHERE ws.status = :supervisorApproved
+                  AND ws.reassigned_to IS NULL
+                  AND (
+                      u.workflow_type = :single
+                      OR (u.workflow_type IS NULL AND u.step2_approver_id IS NULL)
+                      OR (u.step2_approver_id IS NOT NULL AND u.step2_approver_id = u.supervisor_id)
+                  )";
+
+        $params = [
+            'approved' => WeeklySubmission::STATUS_APPROVED,
+            'supervisorApproved' => WeeklySubmission::STATUS_SUPERVISOR_APPROVED,
+            'single' => 'single',
+        ];
+
+        if ($user !== null) {
+            $sql .= " AND u.id = :user_id";
+            $params['user_id'] = $user->getId();
+        }
+
+        return $conn->executeStatement($sql, $params);
+    }
+
+    /**
      * @return WeeklySubmission[]
      */
     public function findSupervisorApprovedForManager(User $user): array
