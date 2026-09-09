@@ -50,6 +50,18 @@ class LdapManager
             throw new LdapDriverException('This search must only return a single user');
         }
 
+        // if the samaccountname lookup yields nothing but the user logged in
+        // with an email address, fall back to resolving the account via the
+        // mail attribute (the email prefix may differ from the samaccountname)
+        if (0 === $entries['count'] && str_contains($username, '@')) {
+            $resolved = $this->resolveSamAccountNameByEmail($username);
+            if ($resolved !== null) {
+                $criteria = [$params['usernameAttribute'] => $resolved];
+                $filter = $this->buildFilter($criteria);
+                $entries = $this->driver->search($params['baseDn'], $filter);
+            }
+        }
+
         if (0 === $entries['count']) {
             return null;
         }
@@ -74,7 +86,44 @@ class LdapManager
 
     public function bind(string $dn, string $password): bool
     {
+        // when logging in with an email address, resolve the actual
+        // samaccountname from Active Directory, because the email prefix
+        // does not always match the samaccountname
+        if (str_contains($dn, '@')) {
+            $resolved = $this->resolveSamAccountNameByEmail($dn);
+            if ($resolved !== null) {
+                $dn = $resolved;
+            }
+        }
+
         return $this->driver->bind($dn, $password);
+    }
+
+    private function resolveSamAccountNameByEmail(string $email): ?string
+    {
+        $params = $this->config->getUserParameters();
+        $searchBase = $params['baseDn'] ?? 'dc=ppda,dc=go,dc=ug';
+
+        try {
+            $entries = $this->driver->search($searchBase, \sprintf('(&(objectClass=user)(mail=%s))', ldap_escape($email, '', LDAP_ESCAPE_FILTER)));
+        } catch (LdapDriverException $e) {
+            return null;
+        }
+
+        if (0 === $entries['count']) {
+            return null;
+        }
+
+        if (!isset($entries[0][$params['usernameAttribute']])) {
+            return null;
+        }
+
+        $sam = $entries[0][$params['usernameAttribute']];
+        if (\is_array($sam)) {
+            $sam = $sam[0];
+        }
+
+        return $sam;
     }
 
     public function getLastBindError(): ?string
@@ -266,6 +315,13 @@ class LdapManager
                 }
             } elseif ($attr['user_method'] === 'setUserIdentifier') {
                 $sawUsername = true;
+
+                // never overwrite the username of an already persisted user: the
+                // database username may be the login name (email) of the user and
+                // does not have to match the samaccountname in Active Directory
+                if ($user instanceof User && $user->getId() !== null) {
+                    continue;
+                }
             }
 
             if (!method_exists($user, $attr['user_method'])) {

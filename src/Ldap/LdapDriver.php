@@ -86,6 +86,14 @@ class LdapDriver
     {
         $driver = $this->getDriver();
 
+        // strip any "@domain" suffix so that the user can log in with either
+        // their bare samaccountname or their full email address, matching the
+        // behaviour of findUserByUsername()
+        $atPos = strpos($bindDn, '@');
+        if ($atPos !== false) {
+            $bindDn = substr($bindDn, 0, $atPos);
+        }
+
         try {
             $this->logger->debug('{action}({bindDn}, ****)', [
                 'action' => 'ldap_bind',
