@@ -1,0 +1,8 @@
+{
+  "policies": {
+    "Authentication": {
+      "SPNEGO": ["*.ppda.go.ug"],
+      "Delegated": ["*.ppda.go.ug"]
+    }
+  }
+}

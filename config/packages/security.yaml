@@ -94,6 +94,8 @@ security:
         - {path: '^/{_locale}$', role: PUBLIC_ACCESS}
         - {path: '^/{_locale}/auth', role: PUBLIC_ACCESS}
         - {path: '^/{_locale}/login', role: PUBLIC_ACCESS}
+        - {path: '^/{_locale}/sso', role: PUBLIC_ACCESS}
+        - {path: '^/sso', role: PUBLIC_ACCESS}
         - {path: '^/{_locale}/register', role: PUBLIC_ACCESS}
         - {path: '^/{_locale}/resetting', role: PUBLIC_ACCESS}
         - {path: '^/{_locale}/', roles: ROLE_USER}

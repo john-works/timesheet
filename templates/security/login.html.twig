@@ -43,6 +43,17 @@
         }
         document.cookie = "{{ constant('\\App\\Utils\\ProfileManager::COOKIE_PROFILE') }}="+profile+"; path=/; expires=; SameSite=Strict; Secure";
     </script>
+    <script>
+        {# Single sign-on: if this machine already has a valid PPDA domain ticket,
+           silently authenticate against the domain. Non-domain users stay on the form. #}
+        fetch('{{ path('sso') }}', { credentials: 'include', redirect: 'follow' })
+            .then(function (response) {
+                if (response.ok && response.redirected) {
+                    window.location.href = response.url;
+                }
+            })
+            .catch(function () {});
+    </script>
     {{ event.content|raw }}
 {% endblock %}
 
