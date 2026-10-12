@@ -27,7 +27,7 @@
                     <div class="col-md-6">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" id="approvalSearch" class="form-control" placeholder="Search by name, department, category..." oninput="filterApprovalTable()">
+                            <input type="text" id="approvalSearch" class="form-control" placeholder="Search by first or last name, email or department..." oninput="filterApprovalTable()">
                         </div>
                     </div>
                 </div>
@@ -61,10 +61,15 @@
                                 </tr>
                             {% endif %}
 
-                            <tr class="{{ isMissing ? 'table-danger' : '' }}">
+                            {% set nameParts = staff.displayName|split(' ') %}
+                            {% set searchKey = ([staff.displayName, staff.username, staff.email, staff.alias, staff.title, row.department, row.category]|merge(nameParts)|join(' '))|lower %}
+                            <tr class="{{ isMissing ? 'table-danger' : '' }}" data-search="{{ searchKey }}">
                                 <td>
                                     <strong>{{ staff.displayName }}</strong>
                                     <br><small class="text-muted">{{ staff.username }}</small>
+                                    {% if staff.email %}
+                                    <br><small class="text-muted">{{ staff.email }}</small>
+                                    {% endif %}
                                     {% if staff.title %}
                                     <br><small class="text-muted">{{ staff.title }}</small>
                                     {% endif %}
@@ -166,14 +171,18 @@
 
             rows.forEach(function(row) {
                 if (row.classList.contains('table-active')) return;
-                var cells = row.querySelectorAll('td');
-                var text = '';
-                if (cells[0]) text += cells[0].textContent + ' ';
-                if (cells[1]) text += cells[1].textContent + ' ';
-                var prev = row.previousElementSibling;
-                while (prev && !prev.classList.contains('table-active')) prev = prev.previousElementSibling;
-                if (prev) text += prev.textContent + ' ';
-                row.style.display = text.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+                var key = row.getAttribute('data-search');
+                if (key === null) {
+                    var cells = row.querySelectorAll('td');
+                    var text = '';
+                    if (cells[0]) text += cells[0].textContent + ' ';
+                    if (cells[1]) text += cells[1].textContent + ' ';
+                    var prev = row.previousElementSibling;
+                    while (prev && !prev.classList.contains('table-active')) prev = prev.previousElementSibling;
+                    if (prev) text += prev.textContent + ' ';
+                    key = text.toLowerCase();
+                }
+                row.style.display = key.indexOf(filter) > -1 ? '' : 'none';
             });
 
             rows.forEach(function(row) {

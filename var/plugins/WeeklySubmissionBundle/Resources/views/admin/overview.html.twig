@@ -25,10 +25,27 @@
                         <button type="button" class="btn btn-sm btn-outline-warning" data-filter="rejected"><i class="fas fa-exclamation-triangle"></i> Rejected</button>
                         <button type="button" class="btn btn-sm btn-outline-danger" data-filter="missing"><i class="fas fa-times-circle"></i> Not submitted</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="empty"><i class="fas fa-minus-circle"></i> No timesheet data</button>
-                        <select id="dept-filter" class="form-select form-select-sm ms-2" style="max-width: 260px;" aria-label="Filter by department">
-                            <option value="">All departments</option>
-                            {% for dept in departments %}
-                                <option value="{{ dept }}">{{ dept }}</option>
+                        <div class="dropdown ms-2" id="dept-dropdown">
+                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="dept-dropdown-btn">All departments</button>
+                            <ul class="dropdown-menu p-2" style="max-height: 320px; overflow-y: auto; min-width: 300px;">
+                                {% for dept in departments %}
+                                    <li>
+                                        <label class="dropdown-item d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input flex-shrink-0 dept-check" type="checkbox" value="{{ dept }}" {% if dept in initialDepts %}checked{% endif %}>
+                                            <span>{{ dept }}</span>
+                                        </label>
+                                    </li>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button type="button" class="dropdown-item text-center small" id="dept-clear">All departments</button>
+                                </li>
+                            </ul>
+                        </div>
+                        <select id="month-filter" class="form-select form-select-sm ms-2" style="max-width: 160px;" aria-label="Filter by month">
+                            <option value="">All months</option>
+                            {% for month in availableMonths %}
+                                <option value="{{ month.value }}" {% if month.value == initialMonth %}selected{% endif %}>{{ month.label }}</option>
                             {% endfor %}
                         </select>
                         <span class="badge bg-primary text-white ms-2">Current week highlighted</span>
@@ -40,7 +57,7 @@
                                     <th class="align-middle">Staff</th>
                                     <th class="align-middle">Department</th>
                                     {% for week in weeks %}
-                                        <th class="text-center align-middle {{ week|date('Y-m-d') == currentWeekStart|date('Y-m-d') ? 'table-primary' : '' }}" title="{{ week|date('d/m/Y') }} - {{ week|date_modify('+4 days')|date('d/m/Y') }}">
+                                        <th class="text-center align-middle {{ week|date('Y-m-d') == currentWeekStart|date('Y-m-d') ? 'table-primary' : '' }}" data-week="{{ week|date('Y-m-d') }}" title="{{ week|date('d/m/Y') }} - {{ week|date_modify('+4 days')|date('d/m/Y') }}">
                                             {{ week|date('d/m') }}<br>
                                             <small class="fw-normal">{{ week|date('M') }}</small>
                                         </th>
@@ -118,15 +135,35 @@
     };
 
     var buttons = filterBar.querySelectorAll('[data-filter]');
-    var deptSelect = document.getElementById('dept-filter');
+    var deptChecks = filterBar.querySelectorAll('.dept-check');
+    var deptBtn = document.getElementById('dept-dropdown-btn');
+    var deptClear = document.getElementById('dept-clear');
+    var monthSelect = document.getElementById('month-filter');
     var currentStatus = 'all';
     var exportPdf = document.getElementById('export-pdf');
     var exportBase = exportPdf ? exportPdf.getAttribute('href').split('?')[0] : null;
 
-    function updatePdfLink(status, dept) {
-        if (exportPdf) {
-            exportPdf.href = exportBase + '?status=' + encodeURIComponent(status) + '&dept=' + encodeURIComponent(dept);
-        }
+    var params = new URLSearchParams(window.location.search);
+    var initialStatus = params.get('status');
+    if (initialStatus && styles[initialStatus]) {
+        currentStatus = initialStatus;
+    }
+
+    function selectedDepts() {
+        var out = [];
+        deptChecks.forEach(function (check) {
+            if (check.checked) out.push(check.value);
+        });
+        return out;
+    }
+
+    function buildQuery(status, depts, month) {
+        var query = new URLSearchParams();
+        if (status !== 'all') query.set('status', status);
+        depts.forEach(function (dept) { query.append('dept[]', dept); });
+        if (month !== '') query.set('month', month);
+        var str = query.toString();
+        return str ? '?' + str : '';
     }
 
     function updateButtons(filter) {
@@ -146,21 +183,44 @@
         return found;
     }
 
-    function applyFilter(status, dept) {
+    function applyFilter() {
+        var depts = selectedDepts();
+        var month = monthSelect ? monthSelect.value : '';
+
+        if (deptBtn) {
+            deptBtn.textContent = depts.length === 0
+                ? 'All departments'
+                : (depts.length === 1 ? depts[0] : depts.length + ' departments');
+        }
+
+        var visibleWeek = {};
+        table.querySelectorAll('thead th[data-week]').forEach(function (th) {
+            var week = th.dataset.week;
+            var show = month === '' || week.substring(0, 7) === month;
+            visibleWeek[week] = show;
+            th.style.display = show ? '' : 'none';
+        });
+
         rows.forEach(function (row) {
-            var show = true;
-            if (dept !== '') {
-                show = row.dataset.dept === dept;
-            }
-            if (show && status !== 'all') {
+            var show = depts.length === 0 || depts.indexOf(row.dataset.dept) !== -1;
+            if (show && currentStatus !== 'all') {
                 var cell = cellForWeek(row, currentWeek);
-                show = cell !== null && cell.dataset.type === status;
+                show = cell !== null && cell.dataset.type === currentStatus;
             }
             row.style.display = show ? '' : 'none';
+
+            row.querySelectorAll('td[data-week]').forEach(function (td) {
+                td.style.display = visibleWeek[td.dataset.week] ? '' : 'none';
+            });
         });
 
         footCells.forEach(function (td) {
             var week = td.dataset.footerWeek;
+            if (visibleWeek[week] === false) {
+                td.style.display = 'none';
+                return;
+            }
+            td.style.display = '';
             var submitted = 0;
             var total = 0;
             rows.forEach(function (row) {
@@ -172,20 +232,38 @@
             });
             td.textContent = submitted + '/' + total;
         });
-        updateButtons(status);
-        updatePdfLink(status, dept);
+
+        var query = buildQuery(currentStatus, depts, month);
+        if (exportPdf) exportPdf.href = exportBase + query;
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname + query + window.location.hash);
+        }
+        updateButtons(currentStatus);
     }
 
     buttons.forEach(function (btn) {
         btn.addEventListener('click', function () {
             currentStatus = btn.dataset.filter;
-            applyFilter(currentStatus, deptSelect.value);
+            applyFilter();
         });
     });
 
-    deptSelect.addEventListener('change', function () {
-        applyFilter(currentStatus, deptSelect.value);
+    deptChecks.forEach(function (check) {
+        check.addEventListener('change', applyFilter);
     });
+
+    if (deptClear) {
+        deptClear.addEventListener('click', function () {
+            deptChecks.forEach(function (check) { check.checked = false; });
+            applyFilter();
+        });
+    }
+
+    if (monthSelect) {
+        monthSelect.addEventListener('change', applyFilter);
+    }
+
+    applyFilter();
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
         if (!bootstrap.Tooltip.getInstance(el)) {

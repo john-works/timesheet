@@ -43,9 +43,23 @@ final class AdminController extends AbstractController
     }
 
     #[Route('/admin/submissions/overview', name: 'weekly_submission_admin_overview', methods: ['GET'])]
-    public function overview(#[CurrentUser] User $user): Response
+    public function overview(#[CurrentUser] User $user, Request $request): Response
     {
-        return $this->render('@WeeklySubmission/admin/overview.html.twig', $this->buildOverviewData());
+        $overview = $this->buildOverviewData();
+
+        $availableMonths = [];
+        foreach ($overview['weeks'] as $week) {
+            $value = $week->format('Y-m');
+            if (!isset($availableMonths[$value])) {
+                $availableMonths[$value] = ['value' => $value, 'label' => $week->format('M Y')];
+            }
+        }
+
+        return $this->render('@WeeklySubmission/admin/overview.html.twig', $overview + [
+            'availableMonths' => array_values($availableMonths),
+            'initialDepts' => $this->getDeptFilter($request),
+            'initialMonth' => $this->getMonthFilter($request),
+        ]);
     }
 
     #[Route('/admin/submissions/overview/pdf', name: 'weekly_submission_admin_overview_pdf', methods: ['GET'])]
@@ -54,12 +68,25 @@ final class AdminController extends AbstractController
         $overview = $this->buildOverviewData();
         $currentWeekKey = $overview['currentWeekStart']->format('Y-m-d');
 
-        $dept = (string) $request->query->get('dept', '');
+        $depts = $this->getDeptFilter($request);
+        $month = $this->getMonthFilter($request);
+        $monthLabel = $month !== '' ? (new \DateTimeImmutable($month . '-01'))->format('F Y') : '';
         $status = (string) $request->query->get('status', 'all');
+
+        if ($month !== '') {
+            $overview['weeks'] = array_values(array_filter(
+                $overview['weeks'],
+                fn (\DateTimeImmutable $week): bool => $week->format('Y-m') === $month
+            ));
+            $overview['weekKeys'] = array_map(
+                fn (\DateTimeImmutable $week): string => $week->format('Y-m-d'),
+                $overview['weeks']
+            );
+        }
 
         $data = [];
         foreach ($overview['data'] as $entry) {
-            if ($dept !== '' && $entry['department'] !== $dept) {
+            if ($depts !== [] && !in_array($entry['department'], $depts, true)) {
                 continue;
             }
             if ($status !== 'all') {
@@ -90,7 +117,8 @@ final class AdminController extends AbstractController
             'data' => $data,
             'weekSubmitted' => $weekSubmitted,
             'weekTotal' => $weekTotal,
-            'deptFilter' => $dept,
+            'deptFilter' => implode(', ', $depts),
+            'monthLabel' => $monthLabel,
             'statusFilter' => $status,
             'generatedAt' => $generatedAt,
         ]);
@@ -103,7 +131,7 @@ final class AdminController extends AbstractController
             'margin_right' => 8,
         ]);
 
-        $filename = 'weekly-submission-overview-' . $generatedAt->format('Y-m-d');
+        $filename = 'weekly-submission-overview-' . ($month !== '' ? $month . '-' : '') . $generatedAt->format('Y-m-d');
 
         $response = new Response($pdf);
         $response->headers->set('Content-Type', 'application/pdf');
@@ -116,6 +144,39 @@ final class AdminController extends AbstractController
     }
 
     /**
+     * Departments selected via ?dept[]=Name&dept[]=Name2 (single ?dept=Name kept for compatibility).
+     *
+     * @return string[]
+     */
+    private function getDeptFilter(Request $request): array
+    {
+        $raw = $request->query->all()['dept'] ?? [];
+        if (!is_array($raw)) {
+            $raw = [$raw];
+        }
+
+        $depts = [];
+        foreach ($raw as $dept) {
+            $dept = trim((string) $dept);
+            if ($dept !== '') {
+                $depts[] = $dept;
+            }
+        }
+
+        return array_values(array_unique($depts));
+    }
+
+    /**
+     * Selected month via ?month=YYYY-MM, empty string when not set/invalid.
+     */
+    private function getMonthFilter(Request $request): string
+    {
+        $month = trim((string) $request->query->get('month', ''));
+
+        return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) === 1 ? $month : '';
+    }
+
+    /**
      * @return array{weeks: \DateTimeImmutable[], weekKeys: string[], currentWeekStart: \DateTimeImmutable, data: array<int, array{user: User, department: string, cells: array<string, array{type: string, hours: int}>}>, weekSubmitted: array<string, int>, weekTotal: array<string, int>, departments: string[]}
      */
     private function buildOverviewData(): array
@@ -125,11 +186,15 @@ final class AdminController extends AbstractController
 
         $overviewStart = new \DateTimeImmutable('2026-07-13');
         $weeks = [];
-        for ($i = 0; $i < 8; $i++) {
-            $weeks[] = $overviewStart->modify("+{$i} weeks");
+        if ($currentWeekStart < $overviewStart) {
+            $weeks[] = $overviewStart;
+        } else {
+            for ($w = $overviewStart; $w <= $currentWeekStart; $w = $w->modify('+1 week')) {
+                $weeks[] = $w;
+            }
         }
         $from = $weeks[0];
-        $to = $weeks[7]->modify('+1 week');
+        $to = end($weeks)->modify('+1 week');
         $weekKeys = array_map(fn (\DateTimeImmutable $w) => $w->format('Y-m-d'), $weeks);
 
         $conn = $this->entityManager->getConnection();

@@ -8,6 +8,16 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class LdapSyncService
 {
+    /**
+     * Computer objects in AD also carry objectClass=user, so they must be excluded explicitly.
+     */
+    private const LDAP_FILTER_USERS = '(&(objectClass=user)(!(objectClass=computer)))';
+
+    /**
+     * Accounts in these OUs are staff on leave / no longer active. They are never imported.
+     */
+    private const EXCLUDED_OUS = ['disabled', 'disabled accounts', 'inactive'];
+
     private array $messages = [];
 
     public function __construct(
@@ -99,7 +109,7 @@ final class LdapSyncService
 
     private function searchUsers(\LDAP\Connection $ldap, string $baseDn): array|false
     {
-        $search = @ldap_search($ldap, $baseDn, '(objectClass=user)', [
+        $search = @ldap_search($ldap, $baseDn, self::LDAP_FILTER_USERS, [
             'samaccountname',
             'userprincipalname',
             'displayname',
@@ -111,6 +121,7 @@ final class LdapSyncService
             'distinguishedname',
             'whencreated',
             'useraccountcontrol',
+            'objectclass',
         ]);
 
         if (!$search) {
@@ -142,6 +153,19 @@ final class LdapSyncService
                 continue;
             }
 
+            $objectClasses = array_map('strtolower', $e['objectclass'] ?? []);
+            if (\in_array('computer', $objectClasses, true) || str_ends_with($username, '$')) {
+                $this->messages[] = "  SKIP (computer): $username";
+                continue;
+            }
+
+            $dn = $e['distinguishedname'][0] ?? '';
+
+            if ($this->isInExcludedOu($dn)) {
+                $this->messages[] = "  SKIP (on leave / inactive OU): $username";
+                continue;
+            }
+
             $uac = (int) ($e['useraccountcontrol'][0] ?? 0);
             $enabled = !($uac & 2);
 
@@ -150,7 +174,6 @@ final class LdapSyncService
                 continue;
             }
 
-            $dn = $e['distinguishedname'][0] ?? '';
             $ous = $this->parseOUs($dn);
             $unit = $this->extractUnit($ous);
 
@@ -170,6 +193,17 @@ final class LdapSyncService
         }
 
         return $users;
+    }
+
+    private function isInExcludedOu(string $dn): bool
+    {
+        foreach ($this->parseOUs($dn) as $ou) {
+            if (\in_array(strtolower($ou), self::EXCLUDED_OUS, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

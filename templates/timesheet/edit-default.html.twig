@@ -163,6 +163,39 @@
                     return match ? match[1] : '{{ form.vars.name }}';
                 }
 
+                function autosizeTask(el) {
+                    if (!el || el.tagName !== 'TEXTAREA') return;
+                    var lineHeight = parseFloat(window.getComputedStyle(el).lineHeight) || 20;
+                    var border = (parseFloat(window.getComputedStyle(el).borderTopWidth) || 1) * 2;
+                    var padding = (parseFloat(window.getComputedStyle(el).paddingTop) || 4) * 2;
+                    var minHeight = lineHeight + border + padding;
+                    var maxHeight = lineHeight * 6 + border + padding;
+                    el.style.height = 'auto';
+                    var wanted = el.scrollHeight;
+                    el.style.height = Math.min(Math.max(wanted, minHeight), maxHeight) + 'px';
+                    el.style.overflowY = wanted > maxHeight ? 'auto' : 'hidden';
+                }
+
+                function autosizeAllTasks() {
+                    var fields = document.querySelectorAll('textarea[name*="[task]"]');
+                    for (var i = 0; i < fields.length; i++) {
+                        autosizeTask(fields[i]);
+                    }
+                }
+
+                document.addEventListener('input', function(e) {
+                    if (e.target && e.target.name && e.target.name.indexOf('[task]') !== -1) {
+                        autosizeTask(e.target);
+                    }
+                });
+
+                window.addEventListener('resize', autosizeAllTasks);
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', autosizeAllTasks);
+                } else {
+                    autosizeAllTasks();
+                }
+
                 function showAlert(message) {
                     var existing = document.getElementById('taskAlertModal');
                     if (existing) existing.remove();
@@ -194,7 +227,7 @@
                         var tasksList = document.getElementById('tasks-list');
                         if (!tasksList) return;
                         var taskIndex = tasksList.querySelectorAll('tr').length;
-                        var html = '<td><input type="text" name="' + fp + '[tasks][' + taskIndex + '][task]" class="form-control" placeholder="e.g. Working on report, attending meeting, ..."></td>' +
+                        var html = '<td><textarea name="' + fp + '[tasks][' + taskIndex + '][task]" class="form-control" rows="1" placeholder="e.g. Working on report, attending meeting, ..."></textarea></td>' +
                             '<td><select name="' + fp + '[tasks][' + taskIndex + '][status]" class="form-control">' +
                             '<option value=""></option>' +
                             '<option value="In Progress">In Progress</option>' +
@@ -207,6 +240,7 @@
                         var wrapper = document.createElement('tr');
                         wrapper.innerHTML = html;
                         tasksList.appendChild(wrapper);
+                        autosizeAllTasks();
                         return;
                     }
 
@@ -236,7 +270,7 @@
                             return;
                         }
                         for (var i = 0; i < rows.length; i++) {
-                            var taskInput = rows[i].querySelector('input[type="text"]');
+                            var taskInput = rows[i].querySelector('textarea[name*="[task]"], input[type="text"]');
                             var statusSelect = rows[i].querySelector('select');
                             if (!taskInput || !taskInput.value.trim()) {
                                 e.preventDefault();

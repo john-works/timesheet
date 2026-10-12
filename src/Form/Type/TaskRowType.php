@@ -5,7 +5,7 @@ namespace App\Form\Type;
 use App\Form\Model\TaskRow;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -13,10 +13,11 @@ final class TaskRowType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $builder->add('task', TextType::class, [
+        $builder->add('task', TextareaType::class, [
             'label' => 'Activity Details',
             'required' => false,
             'attr' => [
+                'rows' => 1,
                 'placeholder' => 'e.g. Working on report, attending meeting, ...',
             ],
         ]);

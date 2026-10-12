@@ -28,8 +28,11 @@
 <body>
     <h1>Weekly Submission Overview</h1>
     <div class="subtitle">
-        Generated: {{ generatedAt|date('d/m/Y H:i') }} &nbsp;|&nbsp;
-        Period: {{ weeks|first|date('d/m/Y') }} - {{ weeks|last|date_modify('+4 days')|date('d/m/Y') }}
+        Generated: {{ generatedAt|date('d/m/Y H:i') }}
+        {% if weeks|length > 0 %}
+            &nbsp;|&nbsp; Period: {{ weeks|first|date('d/m/Y') }} - {{ weeks|last|date_modify('+4 days')|date('d/m/Y') }}
+        {% endif %}
+        {% if monthLabel %} &nbsp;|&nbsp; Month: {{ monthLabel }}{% endif %}
         {% if deptFilter %} &nbsp;|&nbsp; Department: {{ deptFilter }}{% endif %}
         {% if statusFilter != 'all' %} &nbsp;|&nbsp; Filter: {{ statusFilter|title }}{% endif %}
     </div>
@@ -40,7 +43,9 @@
         <span><b style="color:#6c757d;">-</b> No timesheet data</span>
         <span><b style="background-color:#cfe2ff;">&nbsp;Current week&nbsp;</b></span>
     </div>
-    {% if data|length == 0 %}
+    {% if weeks|length == 0 %}
+        <p>No weeks available for the selected month.</p>
+    {% elseif data|length == 0 %}
         <p>No users match the current filter.</p>
     {% else %}
     <table>
