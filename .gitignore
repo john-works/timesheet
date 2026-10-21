@@ -65,3 +65,14 @@ yarn-error.log
 /nbproject/*
 
 .dockerhub.secrets
+
+# local database dumps / backups (may contain PII and password hashes)
+*.sql
+*.dump
+*.sql.gz
+
+# local secrets / one-off admin scripts
+/config/packages/local.yaml
+*.local.php
+*_probe.php
+dc_cmp*.php

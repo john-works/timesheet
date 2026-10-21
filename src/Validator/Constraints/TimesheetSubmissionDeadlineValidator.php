@@ -54,7 +54,7 @@ final class TimesheetSubmissionDeadlineValidator extends ConstraintValidator
             || ($entryYear === $currentYear - 1 && $entryMonth === 12 && $currentMonth === 1);
 
         if ($isPreviousMonth) {
-            if ($currentDay <= 5) {
+            if ($currentDay <= 15) {
                 // Within grace period - allow submission
                 return;
             } else {

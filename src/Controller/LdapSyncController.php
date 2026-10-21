@@ -26,11 +26,11 @@ final class LdapSyncController extends AbstractController
         $csrfTokenManager->refreshToken('ldap_sync.trigger');
 
         $result = $ldapSyncService->sync(
-            ldapHost: '192.168.33.8',
-            ldapPort: 389,
-            bindDn: 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug',
-            bindPassword: 'ppda2016*',
-            baseDn: 'dc=ppda,dc=go,dc=ug',
+            ldapHost: $_ENV['LDAP_HOST'] ?? '192.168.33.8',
+            ldapPort: (int) ($_ENV['LDAP_PORT'] ?? 389),
+            bindDn: $_ENV['LDAP_BIND_DN'] ?? 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug',
+            bindPassword: $_ENV['LDAP_BIND_PASSWORD'] ?? '',
+            baseDn: $_ENV['LDAP_BASE_DN'] ?? 'dc=ppda,dc=go,dc=ug',
             skipDisabled: true,
         );
 

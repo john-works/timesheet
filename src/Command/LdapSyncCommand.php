@@ -23,11 +23,11 @@ final class LdapSyncCommand extends Command
     {
         $this
             ->setHelp('Connects to AD/LDAP and imports users. Teams and departments are managed manually by an administrator and are never created by the sync.')
-            ->addOption('host', null, InputOption::VALUE_REQUIRED, 'LDAP host', '192.168.33.8')
-            ->addOption('port', null, InputOption::VALUE_REQUIRED, 'LDAP port', '389')
-            ->addOption('bind-dn', null, InputOption::VALUE_REQUIRED, 'LDAP bind DN', 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug')
-            ->addOption('bind-password', null, InputOption::VALUE_REQUIRED, 'LDAP bind password', 'ppda2016*')
-            ->addOption('base-dn', null, InputOption::VALUE_REQUIRED, 'LDAP base DN', 'dc=ppda,dc=go,dc=ug')
+            ->addOption('host', null, InputOption::VALUE_REQUIRED, 'LDAP host', $_ENV['LDAP_HOST'] ?? '192.168.33.8')
+            ->addOption('port', null, InputOption::VALUE_REQUIRED, 'LDAP port', $_ENV['LDAP_PORT'] ?? '389')
+            ->addOption('bind-dn', null, InputOption::VALUE_REQUIRED, 'LDAP bind DN', $_ENV['LDAP_BIND_DN'] ?? 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug')
+            ->addOption('bind-password', null, InputOption::VALUE_REQUIRED, 'LDAP bind password', $_ENV['LDAP_BIND_PASSWORD'] ?? '')
+            ->addOption('base-dn', null, InputOption::VALUE_REQUIRED, 'LDAP base DN', $_ENV['LDAP_BASE_DN'] ?? 'dc=ppda,dc=go,dc=ug')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Only show what would be imported without making changes')
             ->addOption('skip-disabled', null, InputOption::VALUE_NONE, 'Skip disabled user accounts in AD')
         ;

@@ -1,4 +1,7 @@
 <?php
+require __DIR__ . '/vendor/autoload.php';
+(new \Symfony\Component\Dotenv\Dotenv())->bootEnv(__DIR__ . '/.env');
+
 /**
  * Map all staff to teams based on AD department and title/role.
  *
@@ -8,15 +11,19 @@
  *   or to a general department team if no manager is found
  */
 
-$db = new PDO('mysql:host=127.0.0.1;dbname=timesheet;charset=utf8mb4', 'timesheet', 'ppda2022*');
+$db = new PDO(
+    $_ENV['DB_DSN'] ?? 'mysql:host=127.0.0.1;dbname=timesheet;charset=utf8mb4',
+    $_ENV['DB_USER'] ?? 'timesheet',
+    $_ENV['DB_PASSWORD'] ?? ''
+);
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // ====== LDAP Connection ======
-$ldapHost = '192.168.33.8';
-$ldapPort = 389;
-$bindDn = 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug';
-$bindPassword = 'ppda2016*';
-$baseDn = 'dc=ppda,dc=go,dc=ug';
+$ldapHost = $_ENV['LDAP_HOST'] ?? '192.168.33.8';
+$ldapPort = (int) ($_ENV['LDAP_PORT'] ?? 389);
+$bindDn = $_ENV['LDAP_BIND_DN'] ?? 'CN=itop_user,OU=Service Accounts,DC=ppda,DC=go,DC=ug';
+$bindPassword = $_ENV['LDAP_BIND_PASSWORD'] ?? '';
+$baseDn = $_ENV['LDAP_BASE_DN'] ?? 'dc=ppda,dc=go,dc=ug';
 
 $ldap = ldap_connect($ldapHost, $ldapPort);
 if (!$ldap) { echo "FATAL: Could not connect to LDAP\n"; exit(1); }
